@@ -7,7 +7,7 @@ spec:
   - name: jaeger-tracing
     image: jaegertracing/all-in-one:1.22
   - name: vkubelet-fdn-0
-    image: virtual-kubelet
+    image: ansjin/virtual-kubelet:fdn
     # "IfNotPresent" is used to prevent Minikube from trying to pull from the registry (and failing) in the first place.
     imagePullPolicy: IfNotPresent
     args:
