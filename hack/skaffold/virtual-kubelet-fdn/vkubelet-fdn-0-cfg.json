@@ -1,5 +1,5 @@
 {
-  "vkubelet-mock-0": {
+  "vkubelet-fdn-0": {
     "cpu": "2",
     "memory": "32Gi",
     "pods": "128"

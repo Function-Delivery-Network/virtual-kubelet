@@ -1,23 +1,23 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: vkubelet-mock-0
+  name: vkubelet-fdn-0
 spec:
   containers:
   - name: jaeger-tracing
     image: jaegertracing/all-in-one:1.22
-  - name: vkubelet-mock-0
+  - name: vkubelet-fdn-0
     image: virtual-kubelet
     # "IfNotPresent" is used to prevent Minikube from trying to pull from the registry (and failing) in the first place.
     imagePullPolicy: IfNotPresent
     args:
     - /virtual-kubelet
     - --nodename
-    - vkubelet-mock-0
+    - vkubelet-fdn-0
     - --provider
     - fdn
     - --provider-config
-    - /vkubelet-mock-0-cfg.json
+    - /vkubelet-fdn-0-cfg.json
     - --startup-timeout
     - 10s
     - --klog.v
