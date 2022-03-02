@@ -7,9 +7,9 @@ weight: 1
 You can install Virtual Kubelet by building it [from source](#source). First, make sure that you have a [`GOPATH`](https://github.com/golang/go/wiki/GOPATH) set. Then clone the Virtual Kubelet repository and run `make build`:
 
 ```bash
-mkdir -p ${GOPATH}/src/github.com/virtual-kubelet
-cd ${GOPATH}/src/github.com/virtual-kubelet
-git clone https://github.com/virtual-kubelet/virtual-kubelet
+mkdir -p ${GOPATH}/src/github.com/ansjin
+cd ${GOPATH}/src/github.com/ansjin
+git clone https://github.com/ansjin/virtual-kubelet
 cd virtual-kubelet && make build
 ```
 

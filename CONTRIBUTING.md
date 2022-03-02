@@ -18,7 +18,7 @@ signed the CLA can be accepted into the repository.
 
 This is an open source project and as such no formal support is available.
 However, like all good open source projects we do offer "best effort" support
-through [github issues](https://github.com/virtual-kubelet/virtual-kubelet).
+through [github issues](https://github.com/ansjin/virtual-kubelet).
 
 Before opening a new issue or submitting a new pull request, it's helpful to
 search the project - it's likely that another user has already reported the
@@ -67,8 +67,8 @@ You can use the following command to clone your fork to your local
 ```
 cd $GOPATH
 mkdir -p {src,bin,pkg}
-mkdir -p src/github.com/virtual-kubelet/
-cd src/github.com/virtual-kubelet/
+mkdir -p src/github.com/ansjin/
+cd src/github.com/ansjin/
 git clone git@github.com:<your-github-account-name>/virtual-kubelet.git # OR: git clone https://github.com/<your-github-account-name>/virtual-kubelet.git
 cd virtual-kubelet
 go get ./...

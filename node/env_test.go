@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ansjin/virtual-kubelet/log"
+	logruslogger "github.com/ansjin/virtual-kubelet/log/logrus"
 	"github.com/bombsimon/logrusr"
 	"github.com/sirupsen/logrus"
-	"github.com/virtual-kubelet/virtual-kubelet/log"
-	logruslogger "github.com/virtual-kubelet/virtual-kubelet/log/logrus"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	corev1 "k8s.io/api/core/v1"

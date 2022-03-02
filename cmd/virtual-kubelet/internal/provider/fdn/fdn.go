@@ -1,4 +1,4 @@
-package mock
+package fdn
 
 import (
 	"context"
@@ -10,21 +10,32 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ansjin/virtual-kubelet/errdefs"
 	"github.com/ansjin/virtual-kubelet/log"
+	"github.com/ansjin/virtual-kubelet/cmd/virtual-kubelet/internal/provider/fdn/openwhisk"
 	"github.com/ansjin/virtual-kubelet/node/api"
 	stats "github.com/ansjin/virtual-kubelet/node/api/statsv1alpha1"
-	"github.com/ansjin/virtual-kubelet/trace"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/ansjin/virtual-kubelet/trace"
 )
 
+// openfaas provider constants
 const (
+	functionNamePrefix = "fdn-virtual-kubelet"
 	// Provider configuration defaults.
 	defaultCPUCapacity    = "20"
 	defaultMemoryCapacity = "100Gi"
-	defaultPodCapacity    = "20"
+
+	defaultClusterName        = "default"
+	defaultAPIHost            = "131.159.35.165:31001"
+	defaultAuth               = "23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP"
+	defaultPodCapacity        = "20"
+	minMemoryCapacity         = "128"
+	maxMemoryCapacity         = "1024"
+	minPodCapacity            = "1"
+	defaultTimeout            = "60000"
+	defaultServerlessPlatform = "openwhisk"
 
 	// Values used in tracing as attribute keys.
 	namespaceKey     = "namespace"
@@ -32,36 +43,34 @@ const (
 	containerNameKey = "containerName"
 )
 
-// See: https://github.com/ansjin/virtual-kubelet/issues/632
-/*
-var (
-	_ providers.Provider           = (*MockV0Provider)(nil)
-	_ providers.PodMetricsProvider = (*MockV0Provider)(nil)
-	_ node.PodNotifier         = (*MockProvider)(nil)
-)
-*/
-
 // MockProvider implements the virtual-kubelet provider interface and stores pods in memory.
-type MockProvider struct { // nolint:golint
+type FDNProvider struct { // nolint:golint
 	nodeName           string
 	operatingSystem    string
 	internalIP         string
 	daemonEndpointPort int32
-	pods               map[string]*v1.Pod
-	config             MockConfig
+	pods               map[string]*corev1.Pod
+	config             FDNConfig
 	startTime          time.Time
-	notifier           func(*v1.Pod)
+	notifier           func(*corev1.Pod)
 }
+
+var (
+	errNotImplemented = fmt.Errorf("not implemented by FDN provider")
+)
 
 // MockConfig contains a mock virtual-kubelet's configurable parameters.
-type MockConfig struct { // nolint:golint
-	CPU    string `json:"cpu,omitempty"`
-	Memory string `json:"memory,omitempty"`
-	Pods   string `json:"pods,omitempty"`
+type FDNConfig struct { // nolint:golint
+	CPU                string `json:"cpu,omitempty"`
+	Memory             string `json:"memory,omitempty"`
+	Pods               string `json:"pods,omitempty"`
+	ApiHost            string `json:"apiHost,omitempty"`
+	Auth               string `json:"auth,omitempty"`
+	ServerlessPlatform string `json:"serverlessPlatform,omitempty"`
 }
 
-// NewMockProviderMockConfig creates a new MockV0Provider. Mock legacy provider does not implement the new asynchronous podnotifier interface
-func NewMockProviderMockConfig(config MockConfig, nodeName, operatingSystem string, internalIP string, daemonEndpointPort int32) (*MockProvider, error) {
+// NewFDNProviderConfig creates a new MockV0Provider. Mock legacy provider does not implement the new asynchronous podnotifier interface
+func NewFDNProviderConfig(config FDNConfig, nodeName, operatingSystem string, internalIP string, daemonEndpointPort int32) (*FDNProvider, error) {
 	// set defaults
 	if config.CPU == "" {
 		config.CPU = defaultCPUCapacity
@@ -72,12 +81,21 @@ func NewMockProviderMockConfig(config MockConfig, nodeName, operatingSystem stri
 	if config.Pods == "" {
 		config.Pods = defaultPodCapacity
 	}
-	provider := MockProvider{
+	if config.ApiHost == "" {
+		config.ApiHost = defaultAPIHost
+	}
+	if config.Auth == "" {
+		config.Auth = defaultAuth
+	}
+	if config.ServerlessPlatform == "" {
+		config.ServerlessPlatform = defaultServerlessPlatform
+	}
+	provider := FDNProvider{
 		nodeName:           nodeName,
 		operatingSystem:    operatingSystem,
 		internalIP:         internalIP,
 		daemonEndpointPort: daemonEndpointPort,
-		pods:               make(map[string]*v1.Pod),
+		pods:               make(map[string]*corev1.Pod),
 		config:             config,
 		startTime:          time.Now(),
 	}
@@ -86,22 +104,22 @@ func NewMockProviderMockConfig(config MockConfig, nodeName, operatingSystem stri
 }
 
 // NewMockProvider creates a new MockProvider, which implements the PodNotifier interface
-func NewMockProvider(providerConfig, nodeName, operatingSystem string, internalIP string, daemonEndpointPort int32) (*MockProvider, error) {
+func NewFDNProvider(providerConfig, nodeName, operatingSystem string, internalIP string, daemonEndpointPort int32) (*FDNProvider, error) {
 	config, err := loadConfig(providerConfig, nodeName)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewMockProviderMockConfig(config, nodeName, operatingSystem, internalIP, daemonEndpointPort)
+	return NewFDNProviderConfig(config, nodeName, operatingSystem, internalIP, daemonEndpointPort)
 }
 
 // loadConfig loads the given json configuration files.
-func loadConfig(providerConfig, nodeName string) (config MockConfig, err error) {
+func loadConfig(providerConfig, nodeName string) (config FDNConfig, err error) {
 	data, err := ioutil.ReadFile(providerConfig)
 	if err != nil {
 		return config, err
 	}
-	configMap := map[string]MockConfig{}
+	configMap := map[string]FDNConfig{}
 	err = json.Unmarshal(data, &configMap)
 	if err != nil {
 		return config, err
@@ -131,8 +149,9 @@ func loadConfig(providerConfig, nodeName string) (config MockConfig, err error) 
 	return config, nil
 }
 
-// CreatePod accepts a Pod definition and stores it in memory.
-func (p *MockProvider) CreatePod(ctx context.Context, pod *v1.Pod) error {
+// CreatePod takes a Kubernetes Pod and deploys it within the Fargate provider.
+func (p *FDNProvider) CreatePod(ctx context.Context, pod *corev1.Pod) (err error) {
+
 	ctx, span := trace.StartSpan(ctx, "CreatePod")
 	defer span.End()
 
@@ -141,41 +160,49 @@ func (p *MockProvider) CreatePod(ctx context.Context, pod *v1.Pod) error {
 
 	log.G(ctx).Infof("receive CreatePod %q", pod.Name)
 
+	log.G(ctx).Infof("Received CreatePod request for %+v.\n", pod)
+
+	// Ignore daemonSet Pod
+	if pod != nil && pod.OwnerReferences != nil && len(pod.OwnerReferences) != 0 && pod.OwnerReferences[0].Kind == "DaemonSet" {
+		log.G(ctx).Infof("Skip to create DaemonSet pod %q\n", pod.Name)
+		return nil
+	}
+
 	key, err := buildKey(pod)
 	if err != nil {
 		return err
 	}
 
 	now := metav1.NewTime(time.Now())
-	pod.Status = v1.PodStatus{
-		Phase:     v1.PodRunning,
+	pod.Status = corev1.PodStatus{
+		Phase:     corev1.PodRunning,
 		HostIP:    "1.2.3.4",
 		PodIP:     "5.6.7.8",
 		StartTime: &now,
-		Conditions: []v1.PodCondition{
+		Conditions: []corev1.PodCondition{
 			{
-				Type:   v1.PodInitialized,
-				Status: v1.ConditionTrue,
+				Type:   corev1.PodInitialized,
+				Status: corev1.ConditionTrue,
 			},
 			{
-				Type:   v1.PodReady,
-				Status: v1.ConditionTrue,
+				Type:   corev1.PodReady,
+				Status: corev1.ConditionTrue,
 			},
 			{
-				Type:   v1.PodScheduled,
-				Status: v1.ConditionTrue,
+				Type:   corev1.PodScheduled,
+				Status: corev1.ConditionTrue,
 			},
 		},
 	}
 
 	for _, container := range pod.Spec.Containers {
-		pod.Status.ContainerStatuses = append(pod.Status.ContainerStatuses, v1.ContainerStatus{
+		pod.Status.ContainerStatuses = append(pod.Status.ContainerStatuses, corev1.ContainerStatus{
 			Name:         container.Name,
 			Image:        container.Image,
 			Ready:        true,
 			RestartCount: 0,
-			State: v1.ContainerState{
-				Running: &v1.ContainerStateRunning{
+			State: corev1.ContainerState{
+				Running: &corev1.ContainerStateRunning{
 					StartedAt: now,
 				},
 			},
@@ -185,150 +212,122 @@ func (p *MockProvider) CreatePod(ctx context.Context, pod *v1.Pod) error {
 	p.pods[key] = pod
 	p.notifier(pod)
 
-	return nil
-}
+	if p.config.ServerlessPlatform == "openwhisk" {
+		log.G(ctx).Infof("serverless platform : %s", p.config.ServerlessPlatform)
+		err := openwhisk.CreateServerlessFunctionOW(p.config.ApiHost, p.config.Auth, pod)
+		if err != nil {
+			log.G(ctx).Infof("Failed to create pod: %v.\n", err)
+			return err
+		}
 
-// UpdatePod accepts a Pod definition and updates its reference.
-func (p *MockProvider) UpdatePod(ctx context.Context, pod *v1.Pod) error {
-	ctx, span := trace.StartSpan(ctx, "UpdatePod")
-	defer span.End()
-
-	// Add the pod's coordinates to the current span.
-	ctx = addAttributes(ctx, span, namespaceKey, pod.Namespace, nameKey, pod.Name)
-
-	log.G(ctx).Infof("receive UpdatePod %q", pod.Name)
-
-	key, err := buildKey(pod)
-	if err != nil {
-		return err
 	}
-
-	p.pods[key] = pod
-	p.notifier(pod)
 
 	return nil
 }
 
-// DeletePod deletes the specified pod out of memory.
-func (p *MockProvider) DeletePod(ctx context.Context, pod *v1.Pod) (err error) {
-	ctx, span := trace.StartSpan(ctx, "DeletePod")
-	defer span.End()
+// UpdatePod takes a Kubernetes Pod and updates it within the provider.
+func (p *FDNProvider) UpdatePod(ctx context.Context, pod *corev1.Pod) (err error) {
+	log.G(ctx).Infof("Received UpdatePod request for %s/%s.\n", pod.Namespace, pod.Name)
+	return errNotImplemented
+}
 
-	// Add the pod's coordinates to the current span.
-	ctx = addAttributes(ctx, span, namespaceKey, pod.Namespace, nameKey, pod.Name)
+// DeletePod accepts a Pod definition and deletes a Nomad job.
+func (p *FDNProvider) DeletePod(ctx context.Context, pod *corev1.Pod) (err error) {
+	// Deregister job
 
-	log.G(ctx).Infof("receive DeletePod %q", pod.Name)
-
-	key, err := buildKey(pod)
-	if err != nil {
-		return err
-	}
-
-	if _, exists := p.pods[key]; !exists {
-		return errdefs.NotFound("pod not found")
-	}
-
-	now := metav1.Now()
-	delete(p.pods, key)
-	pod.Status.Phase = v1.PodSucceeded
-	pod.Status.Reason = "MockProviderPodDeleted"
-
-	for idx := range pod.Status.ContainerStatuses {
-		pod.Status.ContainerStatuses[idx].Ready = false
-		pod.Status.ContainerStatuses[idx].State = v1.ContainerState{
-			Terminated: &v1.ContainerStateTerminated{
-				Message:    "Mock provider terminated container upon deletion",
-				FinishedAt: now,
-				Reason:     "MockProviderPodContainerDeleted",
-				StartedAt:  pod.Status.ContainerStatuses[idx].State.Running.StartedAt,
-			},
+	if p.config.ServerlessPlatform == "openwhisk" {
+		log.G(ctx).Infof("serverless platform : %s", p.config.ServerlessPlatform)
+		err := openwhisk.DeleteServerlessFunctionOW(p.config.ApiHost, p.config.Auth, pod)
+		if err != nil {
+			log.G(ctx).Infof("Failed to delete pod: %v.\n", err)
+			return err
 		}
 	}
-
-	p.notifier(pod)
+	log.G(ctx).Infof("deleted serverless application %q response\n", pod.Name)
 
 	return nil
 }
 
-// GetPod returns a pod by name that is stored in memory.
-func (p *MockProvider) GetPod(ctx context.Context, namespace, name string) (pod *v1.Pod, err error) {
-	ctx, span := trace.StartSpan(ctx, "GetPod")
-	defer func() {
-		span.SetStatus(err)
-		span.End()
-	}()
+// GetPod returns the pod running in the Nomad cluster. returns nil
+// if pod is not found.
+func (p *FDNProvider) GetPod(ctx context.Context, namespace, name string) (pod *corev1.Pod, err error) {
 
-	// Add the pod's coordinates to the current span.
-	ctx = addAttributes(ctx, span, namespaceKey, namespace, nameKey, name)
-
-	log.G(ctx).Infof("receive GetPod %q", name)
-
-	key, err := buildKeyFromNames(namespace, name)
-	if err != nil {
-		return nil, err
-	}
-
-	if pod, ok := p.pods[key]; ok {
+	// Get serverless function
+	if p.config.ServerlessPlatform == "openwhisk" {
+		log.G(ctx).Infof("serverless platform : %s", p.config.ServerlessPlatform)
+		function, err := openwhisk.GetServerlessFunctionOW(p.config.ApiHost, p.config.Auth, name)
+		if err != nil {
+			log.G(ctx).Infof("Failed to get pod: %v.\n", err)
+			return nil, err
+		}
+		// Change a serverless function into a kubernetes pod
+		pod, err = openwhisk.FunctionToPod(function, p.nodeName)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't convert a serverless function into a pod: %s", err)
+		}
+		log.G(ctx).Infof("send function as pod :  %s", pod.Name)
 		return pod, nil
 	}
-	return nil, errdefs.NotFoundf("pod \"%s/%s\" is not known to the provider", namespace, name)
+
+	return nil, nil
 }
 
 // GetContainerLogs retrieves the logs of a container by name from the provider.
-func (p *MockProvider) GetContainerLogs(ctx context.Context, namespace, podName, containerName string, opts api.ContainerLogOpts) (io.ReadCloser, error) {
-	ctx, span := trace.StartSpan(ctx, "GetContainerLogs")
-	defer span.End()
-
-	// Add pod and container attributes to the current span.
-	ctx = addAttributes(ctx, span, namespaceKey, namespace, nameKey, podName, containerNameKey, containerName)
-
-	log.G(ctx).Infof("receive GetContainerLogs %q", podName)
+func (p *FDNProvider) GetContainerLogs(ctx context.Context, namespace, podName, containerName string, opts api.ContainerLogOpts) (io.ReadCloser, error) {
 	return ioutil.NopCloser(strings.NewReader("")), nil
+}
+
+// GetPodFullName retrieves the full pod name as defined in the provider context.
+func (p *FDNProvider) GetPodFullName(namespace string, pod string) string {
+	return ""
 }
 
 // RunInContainer executes a command in a container in the pod, copying data
 // between in/out/err and the container's stdin/stdout/stderr.
-func (p *MockProvider) RunInContainer(ctx context.Context, namespace, name, container string, cmd []string, attach api.AttachIO) error {
-	log.G(context.TODO()).Infof("receive ExecInContainer %q", container)
-	return nil
+func (p *FDNProvider) RunInContainer(ctx context.Context, namespace, podName, containerName string, cmd []string, attach api.AttachIO) error {
+	return errNotImplemented
 }
 
-// GetPodStatus returns the status of a pod by name that is "running".
-// returns nil if a pod by that name is not found.
-func (p *MockProvider) GetPodStatus(ctx context.Context, namespace, name string) (*v1.PodStatus, error) {
-	ctx, span := trace.StartSpan(ctx, "GetPodStatus")
-	defer span.End()
-
-	// Add namespace and name as attributes to the current span.
-	ctx = addAttributes(ctx, span, namespaceKey, namespace, nameKey, name)
-
-	log.G(ctx).Infof("receive GetPodStatus %q", name)
-
+// GetPodStatus returns the status of a pod by name that is running as a job
+// in the FDN cluster returns nil if a pod by that name is not found.
+func (p *FDNProvider) GetPodStatus(ctx context.Context, namespace, name string) (*corev1.PodStatus, error) {
 	pod, err := p.GetPod(ctx, namespace, name)
 	if err != nil {
 		return nil, err
 	}
-
 	return &pod.Status, nil
 }
 
-// GetPods returns a list of all pods known to be "running".
-func (p *MockProvider) GetPods(ctx context.Context) ([]*v1.Pod, error) {
-	ctx, span := trace.StartSpan(ctx, "GetPods")
-	defer span.End()
+// GetPods returns a list of all pods known to be running in Nomad nodes.
+func (p *FDNProvider) GetPods(ctx context.Context) ([]*corev1.Pod, error) {
+	log.G(ctx).Infof("GetPods\n")
 
-	log.G(ctx).Info("receive GetPods")
+	if p.config.ServerlessPlatform == "openwhisk" {
+		log.G(ctx).Infof("serverless platform : %s", p.config.ServerlessPlatform)
 
-	var pods []*v1.Pod
+		functionsList, err := openwhisk.GetServerlessFunctionsOW(p.config.ApiHost, p.config.Auth)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't get fn list from ow: %s", err)
+		}
+		var pods = []*corev1.Pod{}
+		for _, function := range functionsList {
 
-	for _, pod := range p.pods {
-		pods = append(pods, pod)
+			// Change a function into a kubernetes pod
+			pod, err := openwhisk.FunctionToPod(&function, p.nodeName)
+			if err != nil {
+				return nil, fmt.Errorf("couldn't convert a ow function into a pod: %s", err)
+			}
+
+			pods = append(pods, pod)
+		}
+		return pods, nil
 	}
 
-	return pods, nil
+	return nil, nil
+
 }
 
-func (p *MockProvider) ConfigureNode(ctx context.Context, n *v1.Node) { // nolint:golint
+func (p *FDNProvider) ConfigureNode(ctx context.Context, n *corev1.Node) { // nolint:golint
 	ctx, span := trace.StartSpan(ctx, "mock.ConfigureNode") // nolint:staticcheck,ineffassign
 	defer span.End()
 
@@ -348,8 +347,8 @@ func (p *MockProvider) ConfigureNode(ctx context.Context, n *v1.Node) { // nolin
 }
 
 // Capacity returns a resource list containing the capacity limits.
-func (p *MockProvider) capacity() v1.ResourceList {
-	return v1.ResourceList{
+func (p *FDNProvider) capacity() corev1.ResourceList {
+	return corev1.ResourceList{
 		"cpu":    resource.MustParse(p.config.CPU),
 		"memory": resource.MustParse(p.config.Memory),
 		"pods":   resource.MustParse(p.config.Pods),
@@ -358,20 +357,20 @@ func (p *MockProvider) capacity() v1.ResourceList {
 
 // NodeConditions returns a list of conditions (Ready, OutOfDisk, etc), for updates to the node status
 // within Kubernetes.
-func (p *MockProvider) nodeConditions() []v1.NodeCondition {
-	// TODO: Make this configurable
-	return []v1.NodeCondition{
+func (p *FDNProvider) nodeConditions() []corev1.NodeCondition {
+	// TODO: Make these dynamic.
+	return []corev1.NodeCondition{
 		{
 			Type:               "Ready",
-			Status:             v1.ConditionFalse,
+			Status:             corev1.ConditionTrue,
 			LastHeartbeatTime:  metav1.Now(),
 			LastTransitionTime: metav1.Now(),
-			Reason:             "KubeletPending",
-			Message:            "kubelet is pending.",
+			Reason:             "KubeletReady",
+			Message:            "kubelet is ready.",
 		},
 		{
 			Type:               "OutOfDisk",
-			Status:             v1.ConditionFalse,
+			Status:             corev1.ConditionFalse,
 			LastHeartbeatTime:  metav1.Now(),
 			LastTransitionTime: metav1.Now(),
 			Reason:             "KubeletHasSufficientDisk",
@@ -379,7 +378,7 @@ func (p *MockProvider) nodeConditions() []v1.NodeCondition {
 		},
 		{
 			Type:               "MemoryPressure",
-			Status:             v1.ConditionFalse,
+			Status:             corev1.ConditionFalse,
 			LastHeartbeatTime:  metav1.Now(),
 			LastTransitionTime: metav1.Now(),
 			Reason:             "KubeletHasSufficientMemory",
@@ -387,7 +386,7 @@ func (p *MockProvider) nodeConditions() []v1.NodeCondition {
 		},
 		{
 			Type:               "DiskPressure",
-			Status:             v1.ConditionFalse,
+			Status:             corev1.ConditionFalse,
 			LastHeartbeatTime:  metav1.Now(),
 			LastTransitionTime: metav1.Now(),
 			Reason:             "KubeletHasNoDiskPressure",
@@ -395,7 +394,7 @@ func (p *MockProvider) nodeConditions() []v1.NodeCondition {
 		},
 		{
 			Type:               "NetworkUnavailable",
-			Status:             v1.ConditionFalse,
+			Status:             corev1.ConditionFalse,
 			LastHeartbeatTime:  metav1.Now(),
 			LastTransitionTime: metav1.Now(),
 			Reason:             "RouteCreated",
@@ -407,8 +406,8 @@ func (p *MockProvider) nodeConditions() []v1.NodeCondition {
 
 // NodeAddresses returns a list of addresses for the node status
 // within Kubernetes.
-func (p *MockProvider) nodeAddresses() []v1.NodeAddress {
-	return []v1.NodeAddress{
+func (p *FDNProvider) nodeAddresses() []corev1.NodeAddress {
+	return []corev1.NodeAddress{
 		{
 			Type:    "InternalIP",
 			Address: p.internalIP,
@@ -418,16 +417,30 @@ func (p *MockProvider) nodeAddresses() []v1.NodeAddress {
 
 // NodeDaemonEndpoints returns NodeDaemonEndpoints for the node status
 // within Kubernetes.
-func (p *MockProvider) nodeDaemonEndpoints() v1.NodeDaemonEndpoints {
-	return v1.NodeDaemonEndpoints{
-		KubeletEndpoint: v1.DaemonEndpoint{
+func (p *FDNProvider) nodeDaemonEndpoints() corev1.NodeDaemonEndpoints {
+	return corev1.NodeDaemonEndpoints{
+		KubeletEndpoint: corev1.DaemonEndpoint{
 			Port: p.daemonEndpointPort,
 		},
 	}
 }
 
+// addAttributes adds the specified attributes to the provided span.
+// attrs must be an even-sized list of string arguments.
+// Otherwise, the span won't be modified.
+// TODO: Refactor and move to a "tracing utilities" package.
+func addAttributes(ctx context.Context, span trace.Span, attrs ...string) context.Context {
+	if len(attrs)%2 == 1 {
+		return ctx
+	}
+	for i := 0; i < len(attrs); i += 2 {
+		ctx = span.WithField(ctx, attrs[i], attrs[i+1])
+	}
+	return ctx
+}
+
 // GetStatsSummary returns dummy stats for all pods known by this provider.
-func (p *MockProvider) GetStatsSummary(ctx context.Context) (*stats.Summary, error) {
+func (p *FDNProvider) GetStatsSummary(ctx context.Context) (*stats.Summary, error) {
 	var span trace.Span
 	ctx, span = trace.StartSpan(ctx, "GetStatsSummary") //nolint: ineffassign,staticcheck
 	defer span.End()
@@ -506,7 +519,7 @@ func (p *MockProvider) GetStatsSummary(ctx context.Context) (*stats.Summary, err
 
 // NotifyPods is called to set a pod notifier callback function. This should be called before any operations are done
 // within the provider.
-func (p *MockProvider) NotifyPods(ctx context.Context, notifier func(*v1.Pod)) {
+func (p *FDNProvider) NotifyPods(ctx context.Context, notifier func(*corev1.Pod)) {
 	p.notifier = notifier
 }
 
@@ -515,7 +528,7 @@ func buildKeyFromNames(namespace string, name string) (string, error) {
 }
 
 // buildKey is a helper for building the "key" for the providers pod store.
-func buildKey(pod *v1.Pod) (string, error) {
+func buildKey(pod *corev1.Pod) (string, error) {
 	if pod.ObjectMeta.Namespace == "" {
 		return "", fmt.Errorf("pod namespace not found")
 	}
@@ -525,18 +538,4 @@ func buildKey(pod *v1.Pod) (string, error) {
 	}
 
 	return buildKeyFromNames(pod.ObjectMeta.Namespace, pod.ObjectMeta.Name)
-}
-
-// addAttributes adds the specified attributes to the provided span.
-// attrs must be an even-sized list of string arguments.
-// Otherwise, the span won't be modified.
-// TODO: Refactor and move to a "tracing utilities" package.
-func addAttributes(ctx context.Context, span trace.Span, attrs ...string) context.Context {
-	if len(attrs)%2 == 1 {
-		return ctx
-	}
-	for i := 0; i < len(attrs); i += 2 {
-		ctx = span.WithField(ctx, attrs[i], attrs[i+1])
-	}
-	return ctx
 }

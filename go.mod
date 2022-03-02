@@ -1,10 +1,11 @@
-module github.com/virtual-kubelet/virtual-kubelet
+module github.com/ansjin/virtual-kubelet
 
 go 1.15
 
 require (
 	contrib.go.opencensus.io/exporter/jaeger v0.1.0
 	contrib.go.opencensus.io/exporter/ocagent v0.4.12
+	github.com/apache/openwhisk-client-go v0.0.0-20211007130743-38709899040b
 	github.com/bombsimon/logrusr v1.0.0
 	github.com/docker/spdystream v0.0.0-20170912183627-bc6354cbbc29 // indirect
 	github.com/elazarl/goproxy v0.0.0-20190421051319-9d40249d3c2f // indirect
@@ -19,7 +20,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	go.opencensus.io v0.22.2
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
-	golang.org/x/sys v0.0.0-20201112073958-5cba982894dd
+	golang.org/x/sys v0.0.0-20210112080510-489259a85091
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e
 	google.golang.org/api v0.15.1 // indirect
 	gotest.tools v2.2.0+incompatible

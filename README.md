@@ -2,7 +2,7 @@
 
 Virtual Kubelet is an open source [Kubernetes kubelet](https://kubernetes.io/docs/reference/generated/kubelet/)
 implementation that masquerades as a kubelet for the purposes of connecting Kubernetes to other APIs.
-This allows the nodes to be backed by other services like ACI, AWS Fargate, [IoT Edge](https://github.com/Azure/iot-edge-virtual-kubelet-provider), [Tensile Kube](https://github.com/virtual-kubelet/tensile-kube) etc. The primary scenario for VK is enabling the extension of the Kubernetes API into serverless container platforms like ACI and Fargate, though we are open to others. However, it should be noted that VK is explicitly not intended to be an alternative to Kubernetes federation.
+This allows the nodes to be backed by other services like ACI, AWS Fargate, [IoT Edge](https://github.com/Azure/iot-edge-virtual-kubelet-provider), [Tensile Kube](https://github.com/ansjin/tensile-kube) etc. The primary scenario for VK is enabling the extension of the Kubernetes API into serverless container platforms like ACI and Fargate, though we are open to others. However, it should be noted that VK is explicitly not intended to be an alternative to Kubernetes federation.
 
 Virtual Kubelet features a pluggable architecture and direct use of Kubernetes primitives, making it much easier to build on.
 
@@ -19,7 +19,7 @@ The best description is "Kubernetes API on top, programmable back."
     + [Admiralty Multi-Cluster Scheduler](#admiralty-multi-cluster-scheduler)
     + [Alibaba Cloud ECI Provider](#alibaba-cloud-eci-provider)
     + [Azure Container Instances Provider](#azure-container-instances-provider)
-	+ [Azure Batch GPU Provider](https://github.com/virtual-kubelet/azure-batch/blob/master/README.md)
+	+ [Azure Batch GPU Provider](https://github.com/ansjin/azure-batch/blob/master/README.md)
     + [AWS Fargate Provider](#aws-fargate-provider)
     + [Elotl Kip](#elotl-kip)
 	+ [HashiCorp Nomad](#hashicorp-nomad-provider)
@@ -45,7 +45,7 @@ Virtual Kubelet is focused on providing a library that you can consume in your
 project to build a custom Kubernetes node agent.
 
 See godoc for up to date instructions on consuming this project:
-https://godoc.org/github.com/virtual-kubelet/virtual-kubelet
+https://godoc.org/github.com/ansjin/virtual-kubelet
 
 There are implementations available for [several providers](#providers), see
 those repos for details on how to deploy.
@@ -85,13 +85,13 @@ Admiralty Multi-Cluster Scheduler mutates annotated pods into "proxy pods" sched
 
 Alibaba Cloud ECI(Elastic Container Instance) is a service that allow you run containers without having to manage servers or clusters.
 
-You can find more details in the [Alibaba Cloud ECI provider documentation](https://github.com/virtual-kubelet/alibabacloud-eci/blob/master/README.md).
+You can find more details in the [Alibaba Cloud ECI provider documentation](https://github.com/ansjin/alibabacloud-eci/blob/master/README.md).
 
 #### Configuration File
 
 The alibaba ECI provider will read configuration file specified by the `--provider-config` flag.
 
-The example configure file is in the [ECI provider repository](https://github.com/virtual-kubelet/alibabacloud-eci/blob/master/eci.toml).
+The example configure file is in the [ECI provider repository](https://github.com/ansjin/alibabacloud-eci/blob/master/eci.toml).
 
 ### Azure Container Instances Provider
 
@@ -99,7 +99,7 @@ The Azure Container Instances Provider allows you to utilize both
 typical pods on VMs and Azure Container instances simultaneously in the
 same Kubernetes cluster.
 
-You can find detailed instructions on how to set it up and how to test it in the [Azure Container Instances Provider documentation](https://github.com/virtual-kubelet/azure-aci/blob/master/README.md).
+You can find detailed instructions on how to set it up and how to test it in the [Azure Container Instances Provider documentation](https://github.com/ansjin/azure-aci/blob/master/README.md).
 
 #### Configuration File
 
@@ -117,7 +117,7 @@ IP addresses to connect to the internet, private IP addresses to connect to your
 security groups, IAM roles, CloudWatch Logs and many other AWS services. Pods on Fargate can
 co-exist with pods on regular worker nodes in the same Kubernetes cluster.
 
-Easy instructions and a sample configuration file is available in the [AWS Fargate provider documentation](https://github.com/virtual-kubelet/aws-fargate). Please note that this provider is not currently supported. 
+Easy instructions and a sample configuration file is available in the [AWS Fargate provider documentation](https://github.com/ansjin/aws-fargate). Please note that this provider is not currently supported. 
 
 ### Elotl Kip
 
@@ -133,7 +133,7 @@ using the provider, pods that are scheduled on the virtual Nomad node
 registered on Kubernetes will run as jobs on Nomad clients as they
 would on a Kubernetes node.
 
-For detailed instructions, follow the guide [here](https://github.com/virtual-kubelet/nomad/blob/master/README.md).
+For detailed instructions, follow the guide [here](https://github.com/ansjin/nomad/blob/master/README.md).
 
 ### Liqo Provider
 
@@ -154,11 +154,11 @@ and bind-mount Cinder volumes into a path inside a pod's container.
 ./bin/virtual-kubelet --provider="openstack"
 ```
 
-For detailed instructions, follow the guide [here](https://github.com/virtual-kubelet/openstack-zun/blob/master/README.md).
+For detailed instructions, follow the guide [here](https://github.com/ansjin/openstack-zun/blob/master/README.md).
 
 ### Tensile Kube Provider
 
-[Tensile kube](https://github.com/virtual-kubelet/tensile-kube/blob/master/README.md) is contributed by [tencent
+[Tensile kube](https://github.com/ansjin/tensile-kube/blob/master/README.md) is contributed by [tencent
  games](https://game.qq.com), which is provider for Virtual Kubelet connects your Kubernetes cluster with other Kubernetes clusters. This provider enables us extending Kubernetes to an unlimited one. By using the provider, pods that are scheduled on the virtual node registered on Kubernetes will run as jobs on other Kubernetes clusters' nodes.
 
 ### Adding a New Provider via the Provider Interface
@@ -174,7 +174,7 @@ There are 3 main interfaces:
 When pods are created, updated, or deleted from Kubernetes, these methods are
 called to handle those actions.
 
-[godoc#PodLifecylceHandler](https://godoc.org/github.com/virtual-kubelet/virtual-kubelet/node#PodLifecycleHandler)
+[godoc#PodLifecylceHandler](https://godoc.org/github.com/ansjin/virtual-kubelet/node#PodLifecycleHandler)
 
 ```go
 type PodLifecycleHandler interface {
@@ -206,7 +206,7 @@ of all pods.
 It is highly recommended to implement `PodNotifier`, especially if you plan
 to run a large number of pods.
 
-[godoc#PodNotifier](https://godoc.org/github.com/virtual-kubelet/virtual-kubelet/node#PodNotifier)
+[godoc#PodNotifier](https://godoc.org/github.com/ansjin/virtual-kubelet/node#PodNotifier)
 
 ```go
 type PodNotifier interface {
@@ -232,7 +232,7 @@ NodeProvider is responsible for notifying the virtual-kubelet about node status
 updates. Virtual-Kubelet will periodically check the status of the node and
 update Kubernetes accordingly.
 
-[godoc#NodeProvider](https://godoc.org/github.com/virtual-kubelet/virtual-kubelet/node#NodeProvider)
+[godoc#NodeProvider](https://godoc.org/github.com/ansjin/virtual-kubelet/node#NodeProvider)
 
 ```go
 type NodeProvider interface {
@@ -255,7 +255,7 @@ type NodeProvider interface {
 Virtual Kubelet provides a `NaiveNodeProvider` that you can use if you do not
 plan to have custom node behavior.
 
-[godoc#NaiveNodeProvider](https://godoc.org/github.com/virtual-kubelet/virtual-kubelet/node#NaiveNodeProvider)
+[godoc#NaiveNodeProvider](https://godoc.org/github.com/ansjin/virtual-kubelet/node#NaiveNodeProvider)
 
 `NodeProvider` gets consumed by the `NodeController`, which is core logic for
 managing the node object in Kubernetes.
@@ -269,7 +269,7 @@ managing the node object in Kubernetes.
 
 One of the roles of a Kubelet is to accept requests from the API server for
 things like `kubectl logs` and  `kubectl exec`. Helpers for setting this up are
-provided [here](https://godoc.org/github.com/virtual-kubelet/virtual-kubelet/node/api)
+provided [here](https://godoc.org/github.com/ansjin/virtual-kubelet/node/api)
 
 #### Scrape Pod metrics
 
