@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 cp -r ../../../bin/ bin
-docker buildx build --push --platform linux/arm/v7,linux/arm64/v8,linux/amd64 --tag ansjin/virtual-kublet:fdn .
+docker buildx build --push --platform linux/amd64 --tag ansjin/virtual-kubelet:fdn3 .
