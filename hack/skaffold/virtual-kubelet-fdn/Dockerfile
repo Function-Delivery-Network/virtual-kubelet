@@ -5,7 +5,7 @@ ENV APISERVER_KEY_LOCATION /vkubelet-fdn-0-key.pem
 ENV KUBELET_PORT 10250
 
 # Use the pre-built binary in "bin/virtual-kubelet".
-COPY bin/virtual-kubelet /virtual-kubelet
+COPY bin/e2e/virtual-kubelet /virtual-kubelet
 # Copy the configuration file for the fdn provider.
 COPY ./vkubelet-fdn-0-cfg.json /vkubelet-fdn-0-cfg.json
 # Copy the certificate for the HTTPS server.
