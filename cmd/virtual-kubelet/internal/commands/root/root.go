@@ -87,6 +87,9 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 			DaemonPort:        c.ListenPort,
 			InternalIP:        os.Getenv("VKUBELET_POD_IP"),
 			KubeClusterDomain: c.KubeClusterDomain,
+			ServerlessPlatformName: c.ServerlessPlatformName,
+			ServerlessPlatformApiHost: c.ServerlessPlatformApiHost,
+			ServerlessPlatformAuth: c.ServerlessPlatformAuth,
 		}
 		pInit := s.Get(c.Provider)
 		if pInit == nil {

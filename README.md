@@ -161,6 +161,47 @@ For detailed instructions, follow the guide [here](https://github.com/ansjin/ope
 [Tensile kube](https://github.com/ansjin/tensile-kube/blob/master/README.md) is contributed by [tencent
  games](https://game.qq.com), which is provider for Virtual Kubelet connects your Kubernetes cluster with other Kubernetes clusters. This provider enables us extending Kubernetes to an unlimited one. By using the provider, pods that are scheduled on the virtual node registered on Kubernetes will run as jobs on other Kubernetes clusters' nodes.
 
+### FDN Provider
+#### Building image
+```bash
+make build all
+make bin/e2e
+make bin/e2e/virtual-kubelet
+cd virtual-kubelet/hack/skaffold/virtual-kubelet-fdn
+sudo sh build.sh
+```
+#### using image in pod.
+Check virtual-kubelet/hack/skaffold/virtual-kubelet-fdn/pod.yml
+```yaml
+  - name: vkubelet-fdn-openwhisk-0
+    image: ansjin/virtual-kubelet:fdn5
+    # "IfNotPresent" is used to prevent Minikube from trying to pull from the registry (and failing) in the first place.
+    imagePullPolicy: Always
+    args:
+    - /virtual-kubelet
+    - --nodename
+    - vkubelet-fdn-openwhisk-0
+    - --provider
+    - fdn
+    - --provider-config
+    - /vkubelet-fdn-openwhisk-0-cfg.json
+    - --startup-timeout
+    - 10s
+    - --serverless-platform-name
+    - openwhisk
+    - --serverless-platform-apihost
+    - ""
+    - --serverless-platform-auth
+    - ""
+    - --klog.v
+    - "2"
+    - --klog.logtostderr
+    - --log-level
+    - debug
+    - --trace-exporter
+    - jaeger
+    - --trace-sample-rate=always
+```
 ### Adding a New Provider via the Provider Interface
 
 Providers consume this project as a library which implements the core logic of

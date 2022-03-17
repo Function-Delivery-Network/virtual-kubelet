@@ -1,25 +1,70 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: vkubelet-fdn-0
+  name: vkubelet-fdn-openwhisk-0
 spec:
   containers:
   - name: jaeger-tracing
     image: jaegertracing/all-in-one:1.22
-  - name: vkubelet-fdn-0
-    image: ansjin/virtual-kubelet:fdn
+  - name: fdn-monitor
+    image: ansjin/fdn-monitor
+    imagePullPolicy: Always
+    env:
+    - name: CLUSTER_API_GW_ACCESS_TOKEN
+      value: hello
+    - name: CLUSTER_AUTH
+      value: 
+    - name: CLUSTER_GATEWAY_PORT
+      value: "31001"  
+    - name: CLUSTER_HOST
+      value: 
+    - name: CLUSTER_KUBERNETES_PROMETHEUS_PORT
+      value: "30009"
+    - name: CLUSTER_NAME
+      value: edge_cluster 
+    - name: CLUSTER_SERVERLESS_PLATFROM_PROMETHEUS_PORT
+      value: "30010"
+    - name: CLUSTER_TYPE
+      value: OPENWHISK   
+    - name: CLUSTER_USERNAME
+      value: admin
+    - name: DEFAULT_LOGGING_PERIOD
+      value: "30"   
+
+    - name: INFLUXDB_ADMIN_TOKEN
+      value:    
+    - name: INFLUXDB_BUCKET
+      value: 
+    - name: INFLUXDB_HOST
+      value:  
+    - name: INFLUXDB_ORG
+      value: 
+    - name: INFLUXDB_PORT
+      value: "8086"   
+    - name: INFLUXDB_TABLE_FUNCTIONS
+      value: 
+    - name: INFLUXDB_TABLE_INFRA
+      value:    
+  - name: vkubelet-fdn-openwhisk-0
+    image: ansjin/virtual-kubelet:fdn5
     # "IfNotPresent" is used to prevent Minikube from trying to pull from the registry (and failing) in the first place.
-    imagePullPolicy: IfNotPresent
+    imagePullPolicy: Always
     args:
     - /virtual-kubelet
     - --nodename
-    - vkubelet-fdn-0
+    - vkubelet-fdn-openwhisk-0
     - --provider
     - fdn
     - --provider-config
-    - /vkubelet-fdn-0-cfg.json
+    - /vkubelet-fdn-openwhisk-0-cfg.json
     - --startup-timeout
     - 10s
+    - --serverless-platform-name
+    - openwhisk
+    - --serverless-platform-apihost
+    - ""
+    - --serverless-platform-auth
+    - ""
     - --klog.v
     - "2"
     - --klog.logtostderr

@@ -23,6 +23,9 @@ func registerMock(s *provider.Store) {
 			cfg.OperatingSystem,
 			cfg.InternalIP,
 			cfg.DaemonPort,
+			cfg.ServerlessPlatformName,
+			cfg.ServerlessPlatformApiHost,
+			cfg.ServerlessPlatformAuth,
 		)
 	})
 }

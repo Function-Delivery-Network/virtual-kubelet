@@ -10,14 +10,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ansjin/virtual-kubelet/log"
 	"github.com/ansjin/virtual-kubelet/cmd/virtual-kubelet/internal/provider/fdn/openwhisk"
+	"github.com/ansjin/virtual-kubelet/log"
 	"github.com/ansjin/virtual-kubelet/node/api"
 	stats "github.com/ansjin/virtual-kubelet/node/api/statsv1alpha1"
+	"github.com/ansjin/virtual-kubelet/trace"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"github.com/ansjin/virtual-kubelet/trace"
 )
 
 // openfaas provider constants
@@ -27,15 +27,11 @@ const (
 	defaultCPUCapacity    = "20"
 	defaultMemoryCapacity = "100Gi"
 
-	defaultClusterName        = "default"
-	defaultAPIHost            = "131.159.35.165:31001"
-	defaultAuth               = "23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP"
-	defaultPodCapacity        = "20"
-	minMemoryCapacity         = "128"
-	maxMemoryCapacity         = "1024"
-	minPodCapacity            = "1"
-	defaultTimeout            = "60000"
-	defaultServerlessPlatform = "openwhisk"
+	defaultPodCapacity = "20"
+	minMemoryCapacity  = "128"
+	maxMemoryCapacity  = "1024"
+	minPodCapacity     = "1"
+	defaultTimeout     = "60000"
 
 	// Values used in tracing as attribute keys.
 	namespaceKey     = "namespace"
@@ -45,14 +41,17 @@ const (
 
 // MockProvider implements the virtual-kubelet provider interface and stores pods in memory.
 type FDNProvider struct { // nolint:golint
-	nodeName           string
-	operatingSystem    string
-	internalIP         string
-	daemonEndpointPort int32
-	pods               map[string]*corev1.Pod
-	config             FDNConfig
-	startTime          time.Time
-	notifier           func(*corev1.Pod)
+	nodeName                  string
+	operatingSystem           string
+	internalIP                string
+	daemonEndpointPort        int32
+	serverlessPlatformName    string
+	serverlessPlatformApiHost string
+	serverlessPlatformAuth    string
+	pods                      map[string]*corev1.Pod
+	config                    FDNConfig
+	startTime                 time.Time
+	notifier                  func(*corev1.Pod)
 }
 
 var (
@@ -61,16 +60,14 @@ var (
 
 // MockConfig contains a mock virtual-kubelet's configurable parameters.
 type FDNConfig struct { // nolint:golint
-	CPU                string `json:"cpu,omitempty"`
-	Memory             string `json:"memory,omitempty"`
-	Pods               string `json:"pods,omitempty"`
-	ApiHost            string `json:"apiHost,omitempty"`
-	Auth               string `json:"auth,omitempty"`
-	ServerlessPlatform string `json:"serverlessPlatform,omitempty"`
+	CPU    string `json:"cpu,omitempty"`
+	Memory string `json:"memory,omitempty"`
+	Pods   string `json:"pods,omitempty"`
 }
 
 // NewFDNProviderConfig creates a new MockV0Provider. Mock legacy provider does not implement the new asynchronous podnotifier interface
-func NewFDNProviderConfig(config FDNConfig, nodeName, operatingSystem string, internalIP string, daemonEndpointPort int32) (*FDNProvider, error) {
+func NewFDNProviderConfig(config FDNConfig, nodeName, operatingSystem string, internalIP string, daemonEndpointPort int32,
+	serverlessPlatformName string, serverlessPlatformApiHost string, serverlessPlatformAuth string) (*FDNProvider, error) {
 	// set defaults
 	if config.CPU == "" {
 		config.CPU = defaultCPUCapacity
@@ -81,36 +78,32 @@ func NewFDNProviderConfig(config FDNConfig, nodeName, operatingSystem string, in
 	if config.Pods == "" {
 		config.Pods = defaultPodCapacity
 	}
-	if config.ApiHost == "" {
-		config.ApiHost = defaultAPIHost
-	}
-	if config.Auth == "" {
-		config.Auth = defaultAuth
-	}
-	if config.ServerlessPlatform == "" {
-		config.ServerlessPlatform = defaultServerlessPlatform
-	}
 	provider := FDNProvider{
-		nodeName:           nodeName,
-		operatingSystem:    operatingSystem,
-		internalIP:         internalIP,
-		daemonEndpointPort: daemonEndpointPort,
-		pods:               make(map[string]*corev1.Pod),
-		config:             config,
-		startTime:          time.Now(),
+		nodeName:                  nodeName,
+		operatingSystem:           operatingSystem,
+		internalIP:                internalIP,
+		daemonEndpointPort:        daemonEndpointPort,
+		serverlessPlatformName:    serverlessPlatformName,
+		serverlessPlatformApiHost: serverlessPlatformApiHost,
+		serverlessPlatformAuth:    serverlessPlatformAuth,
+		pods:                      make(map[string]*corev1.Pod),
+		config:                    config,
+		startTime:                 time.Now(),
 	}
 
 	return &provider, nil
 }
 
 // NewMockProvider creates a new MockProvider, which implements the PodNotifier interface
-func NewFDNProvider(providerConfig, nodeName, operatingSystem string, internalIP string, daemonEndpointPort int32) (*FDNProvider, error) {
+func NewFDNProvider(providerConfig, nodeName, operatingSystem string, internalIP string, daemonEndpointPort int32,
+	serverlessPlatformName string, serverlessPlatformApiHost string, serverlessPlatformAuth string) (*FDNProvider, error) {
 	config, err := loadConfig(providerConfig, nodeName)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewFDNProviderConfig(config, nodeName, operatingSystem, internalIP, daemonEndpointPort)
+	return NewFDNProviderConfig(config, nodeName, operatingSystem, internalIP, daemonEndpointPort,
+		serverlessPlatformName, serverlessPlatformApiHost, serverlessPlatformAuth)
 }
 
 // loadConfig loads the given json configuration files.
@@ -212,9 +205,9 @@ func (p *FDNProvider) CreatePod(ctx context.Context, pod *corev1.Pod) (err error
 	p.pods[key] = pod
 	p.notifier(pod)
 
-	if p.config.ServerlessPlatform == "openwhisk" {
-		log.G(ctx).Infof("serverless platform : %s", p.config.ServerlessPlatform)
-		err := openwhisk.CreateServerlessFunctionOW(p.config.ApiHost, p.config.Auth, pod)
+	if p.serverlessPlatformName == "openwhisk" {
+		log.G(ctx).Infof("serverless platform : %s", p.serverlessPlatformName)
+		err := openwhisk.CreateServerlessFunctionOW(p.serverlessPlatformApiHost, p.serverlessPlatformAuth, pod)
 		if err != nil {
 			log.G(ctx).Infof("Failed to create pod: %v.\n", err)
 			return err
@@ -235,9 +228,9 @@ func (p *FDNProvider) UpdatePod(ctx context.Context, pod *corev1.Pod) (err error
 func (p *FDNProvider) DeletePod(ctx context.Context, pod *corev1.Pod) (err error) {
 	// Deregister job
 
-	if p.config.ServerlessPlatform == "openwhisk" {
-		log.G(ctx).Infof("serverless platform : %s", p.config.ServerlessPlatform)
-		err := openwhisk.DeleteServerlessFunctionOW(p.config.ApiHost, p.config.Auth, pod)
+	if p.serverlessPlatformName == "openwhisk" {
+		log.G(ctx).Infof("serverless platform : %s", p.serverlessPlatformName)
+		err := openwhisk.DeleteServerlessFunctionOW(p.serverlessPlatformApiHost, p.serverlessPlatformAuth, pod)
 		if err != nil {
 			log.G(ctx).Infof("Failed to delete pod: %v.\n", err)
 			return err
@@ -253,9 +246,9 @@ func (p *FDNProvider) DeletePod(ctx context.Context, pod *corev1.Pod) (err error
 func (p *FDNProvider) GetPod(ctx context.Context, namespace, name string) (pod *corev1.Pod, err error) {
 
 	// Get serverless function
-	if p.config.ServerlessPlatform == "openwhisk" {
-		log.G(ctx).Infof("serverless platform : %s", p.config.ServerlessPlatform)
-		function, err := openwhisk.GetServerlessFunctionOW(p.config.ApiHost, p.config.Auth, name)
+	if p.serverlessPlatformName == "openwhisk" {
+		log.G(ctx).Infof("serverless platform : %s", p.serverlessPlatformName)
+		function, err := openwhisk.GetServerlessFunctionOW(p.serverlessPlatformApiHost, p.serverlessPlatformAuth, name)
 		if err != nil {
 			log.G(ctx).Infof("Failed to get pod: %v.\n", err)
 			return nil, err
@@ -302,10 +295,10 @@ func (p *FDNProvider) GetPodStatus(ctx context.Context, namespace, name string) 
 func (p *FDNProvider) GetPods(ctx context.Context) ([]*corev1.Pod, error) {
 	log.G(ctx).Infof("GetPods\n")
 
-	if p.config.ServerlessPlatform == "openwhisk" {
-		log.G(ctx).Infof("serverless platform : %s", p.config.ServerlessPlatform)
+	if p.serverlessPlatformName == "openwhisk" {
+		log.G(ctx).Infof("serverless platform : %s", p.serverlessPlatformName)
 
-		functionsList, err := openwhisk.GetServerlessFunctionsOW(p.config.ApiHost, p.config.Auth)
+		functionsList, err := openwhisk.GetServerlessFunctionsOW(p.serverlessPlatformApiHost, p.serverlessPlatformAuth)
 		if err != nil {
 			return nil, fmt.Errorf("couldn't get fn list from ow: %s", err)
 		}

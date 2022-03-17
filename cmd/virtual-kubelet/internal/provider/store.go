@@ -68,6 +68,9 @@ type InitConfig struct {
 	InternalIP        string
 	DaemonPort        int32
 	KubeClusterDomain string
+	ServerlessPlatformName string
+	ServerlessPlatformApiHost string
+	ServerlessPlatformAuth string
 	ResourceManager   *manager.ResourceManager
 }
 

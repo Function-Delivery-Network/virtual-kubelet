@@ -84,6 +84,11 @@ type Opts struct {
 	TraceSampleRate string
 	TraceConfig     TracingExporterOptions
 
+	// FaaS platform related data
+	ServerlessPlatformName string
+	ServerlessPlatformApiHost	string
+	ServerlessPlatformAuth string
+
 	// Startup Timeout is how long to wait for the kubelet to start
 	StartupTimeout time.Duration
 	// StreamIdleTimeout is the maximum time a streaming connection
