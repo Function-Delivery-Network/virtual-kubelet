@@ -1,6 +1,16 @@
 {
-  "vkubelet-fdn-openwhisk-0": {
-    "cpu": "2",
+  "vkubelet-fdn-lrz-cloud-openwhisk-0": {
+    "cpu": "20",
+    "memory": "32Gi",
+    "pods": "128"
+  },
+  "vkubelet-fdn-lrz-cloud-openfaas-0": {
+    "cpu": "20",
+    "memory": "32Gi",
+    "pods": "128"
+  },
+  "vkubelet-fdn-edge-openfaas-0": {
+    "cpu": "10",
     "memory": "32Gi",
     "pods": "128"
   }

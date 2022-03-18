@@ -26,6 +26,7 @@ The best description is "Kubernetes API on top, programmable back."
     + [Liqo](#liqo-provider)
     + [OpenStack Zun](#openstack-zun-provider)
     + [Tensile Kube Provider](#tensile-kube-provider)
+    + [FDN Provider](#fdn-provider)
     + [Adding a New Provider via the Provider Interface](#adding-a-new-provider-via-the-provider-interface)
 * [Testing](#testing)
     + [Unit tests](#unit-tests)
@@ -162,6 +163,25 @@ For detailed instructions, follow the guide [here](https://github.com/ansjin/ope
  games](https://game.qq.com), which is provider for Virtual Kubelet connects your Kubernetes cluster with other Kubernetes clusters. This provider enables us extending Kubernetes to an unlimited one. By using the provider, pods that are scheduled on the virtual node registered on Kubernetes will run as jobs on other Kubernetes clusters' nodes.
 
 ### FDN Provider
+
+#### Overall Architecture
+Overall deployment architecture of FDN-Provider:
+<img src="./docs/diagrams/fdn-provider.png"/>
+
+FDN-provider acts as federation for multiple serverless compute clusters. 
+
+The overall idea is for every virtual-kubelet node within FDN-provider acts as a proxy for mapping to actual underneath serverless compute clusters. These serverless compute clusters could be any like OpenWhisk, OpenFaaS, GCF and AWS Lambda. The FDN provider supports kubectl based create and delete commands for creating and deleting functions to the respective serverless compute cluster using the virtual-kubelet. 
+FDN-provider virtual-kubelet contains mapping for creating and deleting functions. 
+
+#### Currently following serverless frameworks are supported as part of FDN-Provider
+- [ ] OpenFaaS
+- [x] OpenWhisk (not completely)
+- [ ] AWS Lambda 
+- [ ] Google Cloud Functions 
+
+
+
+
 #### Building image
 ```bash
 make build all
@@ -170,7 +190,7 @@ make bin/e2e/virtual-kubelet
 cd virtual-kubelet/hack/skaffold/virtual-kubelet-fdn
 sudo sh build.sh
 ```
-#### using image in pod.
+#### using FDN-Provider as virtual-kubelet in pod.
 Check virtual-kubelet/hack/skaffold/virtual-kubelet-fdn/pod.yml
 ```yaml
   - name: vkubelet-fdn-openwhisk-0
