@@ -11,8 +11,8 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/ansjin/virtual-kubelet/log"
-	"github.com/ansjin/virtual-kubelet/node"
+	"github.com/Function-Delivery-Network/virtual-kubelet/log"
+	"github.com/Function-Delivery-Network/virtual-kubelet/node"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

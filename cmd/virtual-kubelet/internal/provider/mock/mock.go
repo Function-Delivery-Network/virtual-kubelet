@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ansjin/virtual-kubelet/errdefs"
-	"github.com/ansjin/virtual-kubelet/log"
-	"github.com/ansjin/virtual-kubelet/node/api"
-	stats "github.com/ansjin/virtual-kubelet/node/api/statsv1alpha1"
-	"github.com/ansjin/virtual-kubelet/trace"
+	"github.com/Function-Delivery-Network/virtual-kubelet/errdefs"
+	"github.com/Function-Delivery-Network/virtual-kubelet/log"
+	"github.com/Function-Delivery-Network/virtual-kubelet/node/api"
+	stats "github.com/Function-Delivery-Network/virtual-kubelet/node/api/statsv1alpha1"
+	"github.com/Function-Delivery-Network/virtual-kubelet/trace"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,7 +32,7 @@ const (
 	containerNameKey = "containerName"
 )
 
-// See: https://github.com/ansjin/virtual-kubelet/issues/632
+// See: https://github.com/Function-Delivery-Network/virtual-kubelet/issues/632
 /*
 var (
 	_ providers.Provider           = (*MockV0Provider)(nil)

@@ -22,8 +22,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ansjin/virtual-kubelet/errdefs"
-	"github.com/ansjin/virtual-kubelet/log"
+	"github.com/Function-Delivery-Network/virtual-kubelet/errdefs"
+	"github.com/Function-Delivery-Network/virtual-kubelet/log"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 )

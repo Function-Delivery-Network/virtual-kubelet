@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ansjin/virtual-kubelet/log"
-	logruslogger "github.com/ansjin/virtual-kubelet/log/logrus"
+	"github.com/Function-Delivery-Network/virtual-kubelet/log"
+	logruslogger "github.com/Function-Delivery-Network/virtual-kubelet/log/logrus"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
 	"gotest.tools/assert"

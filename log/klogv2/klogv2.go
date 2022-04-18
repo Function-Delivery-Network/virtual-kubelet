@@ -26,7 +26,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ansjin/virtual-kubelet/log"
+	"github.com/Function-Delivery-Network/virtual-kubelet/log"
 	"k8s.io/klog/v2"
 )
 

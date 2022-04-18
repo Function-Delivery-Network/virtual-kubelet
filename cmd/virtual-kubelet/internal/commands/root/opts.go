@@ -89,6 +89,11 @@ type Opts struct {
 	ServerlessPlatformApiHost	string
 	ServerlessPlatformAuth string
 
+	MinioEndpoint             string
+	MinioAccessKeyID          string
+	MinioSecretAccessKey      string
+
+
 	// Startup Timeout is how long to wait for the kubelet to start
 	StartupTimeout time.Duration
 	// StreamIdleTimeout is the maximum time a streaming connection

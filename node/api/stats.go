@@ -19,7 +19,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/ansjin/virtual-kubelet/node/api/statsv1alpha1"
+	"github.com/Function-Delivery-Network/virtual-kubelet/node/api/statsv1alpha1"
 	"github.com/pkg/errors"
 )
 

@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ansjin/virtual-kubelet/log"
-	logruslogger "github.com/ansjin/virtual-kubelet/log/logrus"
+	"github.com/Function-Delivery-Network/virtual-kubelet/log"
+	logruslogger "github.com/Function-Delivery-Network/virtual-kubelet/log/logrus"
 	"github.com/bombsimon/logrusr"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/assert"

@@ -3,7 +3,7 @@ package provider
 import (
 	"context"
 
-	"github.com/ansjin/virtual-kubelet/node/nodeutil"
+	"github.com/Function-Delivery-Network/virtual-kubelet/node/nodeutil"
 	v1 "k8s.io/api/core/v1"
 )
 

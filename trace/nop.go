@@ -17,7 +17,7 @@ package trace
 import (
 	"context"
 
-	"github.com/ansjin/virtual-kubelet/log"
+	"github.com/Function-Delivery-Network/virtual-kubelet/log"
 )
 
 type nopTracer struct{}

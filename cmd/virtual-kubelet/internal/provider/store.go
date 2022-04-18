@@ -3,8 +3,8 @@ package provider
 import (
 	"sync"
 
-	"github.com/ansjin/virtual-kubelet/errdefs"
-	"github.com/ansjin/virtual-kubelet/internal/manager"
+	"github.com/Function-Delivery-Network/virtual-kubelet/errdefs"
+	"github.com/Function-Delivery-Network/virtual-kubelet/internal/manager"
 )
 
 // Store is used for registering/fetching providers
@@ -62,16 +62,19 @@ func (s *Store) Exists(name string) bool {
 
 // InitConfig is the config passed to initialize a registered provider.
 type InitConfig struct {
-	ConfigPath        string
-	NodeName          string
-	OperatingSystem   string
-	InternalIP        string
-	DaemonPort        int32
-	KubeClusterDomain string
-	ServerlessPlatformName string
+	ConfigPath                string
+	NodeName                  string
+	OperatingSystem           string
+	InternalIP                string
+	DaemonPort                int32
+	KubeClusterDomain         string
+	ServerlessPlatformName    string
 	ServerlessPlatformApiHost string
-	ServerlessPlatformAuth string
-	ResourceManager   *manager.ResourceManager
+	ServerlessPlatformAuth    string
+	MinioEndpoint             string
+	MinioAccessKeyID          string
+	MinioSecretAccessKey      string
+	ResourceManager           *manager.ResourceManager
 }
 
 type InitFunc func(InitConfig) (Provider, error) // nolint:golint

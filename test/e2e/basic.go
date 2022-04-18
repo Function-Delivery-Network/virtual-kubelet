@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ansjin/virtual-kubelet/internal/podutils"
-	stats "github.com/ansjin/virtual-kubelet/node/api/statsv1alpha1"
+	"github.com/Function-Delivery-Network/virtual-kubelet/internal/podutils"
+	stats "github.com/Function-Delivery-Network/virtual-kubelet/node/api/statsv1alpha1"
 	"gotest.tools/assert"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"

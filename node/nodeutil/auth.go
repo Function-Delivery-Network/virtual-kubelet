@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ansjin/virtual-kubelet/log"
-	"github.com/ansjin/virtual-kubelet/trace"
+	"github.com/Function-Delivery-Network/virtual-kubelet/log"
+	"github.com/Function-Delivery-Network/virtual-kubelet/trace"
 	"k8s.io/apiserver/pkg/authentication/authenticator"
 	"k8s.io/apiserver/pkg/authentication/authenticatorfactory"
 	"k8s.io/apiserver/pkg/authentication/request/anonymous"

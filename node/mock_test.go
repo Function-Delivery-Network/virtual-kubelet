@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ansjin/virtual-kubelet/errdefs"
-	"github.com/ansjin/virtual-kubelet/log"
+	"github.com/Function-Delivery-Network/virtual-kubelet/errdefs"
+	"github.com/Function-Delivery-Network/virtual-kubelet/log"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

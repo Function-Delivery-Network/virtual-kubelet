@@ -33,7 +33,7 @@ import (
 	core "k8s.io/client-go/testing"
 	"k8s.io/client-go/util/workqueue"
 
-	testutil "github.com/ansjin/virtual-kubelet/internal/test/util"
+	testutil "github.com/Function-Delivery-Network/virtual-kubelet/internal/test/util"
 )
 
 type TestController struct {

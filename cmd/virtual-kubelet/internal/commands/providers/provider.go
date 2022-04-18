@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ansjin/virtual-kubelet/cmd/virtual-kubelet/internal/provider"
+	"github.com/Function-Delivery-Network/virtual-kubelet/cmd/virtual-kubelet/internal/provider"
 	"github.com/spf13/cobra"
 )
 

@@ -16,7 +16,7 @@ package klogv2
 import (
 	"testing"
 
-	"github.com/ansjin/virtual-kubelet/log"
+	"github.com/Function-Delivery-Network/virtual-kubelet/log"
 )
 
 func TestFieldMap_String(t *testing.T) {

@@ -4,9 +4,9 @@ import (
 	"context"
 	"io"
 
-	"github.com/ansjin/virtual-kubelet/node"
-	"github.com/ansjin/virtual-kubelet/node/api"
-	"github.com/ansjin/virtual-kubelet/node/api/statsv1alpha1"
+	"github.com/Function-Delivery-Network/virtual-kubelet/node"
+	"github.com/Function-Delivery-Network/virtual-kubelet/node/api"
+	"github.com/Function-Delivery-Network/virtual-kubelet/node/api/statsv1alpha1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	corev1listers "k8s.io/client-go/listers/core/v1"
@@ -15,7 +15,7 @@ import (
 // Provider contains the methods required to implement a virtual-kubelet provider.
 //
 // Errors produced by these methods should implement an interface from
-// github.com/ansjin/virtual-kubelet/errdefs package in order for the
+// github.com/Function-Delivery-Network/virtual-kubelet/errdefs package in order for the
 // core logic to be able to understand the type of failure
 type Provider interface {
 	node.PodLifecycleHandler

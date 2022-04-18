@@ -10,11 +10,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ansjin/virtual-kubelet/cmd/virtual-kubelet/internal/provider/fdn/openwhisk"
-	"github.com/ansjin/virtual-kubelet/log"
-	"github.com/ansjin/virtual-kubelet/node/api"
-	stats "github.com/ansjin/virtual-kubelet/node/api/statsv1alpha1"
-	"github.com/ansjin/virtual-kubelet/trace"
+	"github.com/Function-Delivery-Network/virtual-kubelet/cmd/virtual-kubelet/internal/provider/fdn/openwhisk"
+	"github.com/Function-Delivery-Network/virtual-kubelet/log"
+	"github.com/Function-Delivery-Network/virtual-kubelet/node/api"
+	stats "github.com/Function-Delivery-Network/virtual-kubelet/node/api/statsv1alpha1"
+	"github.com/Function-Delivery-Network/virtual-kubelet/trace"
+	"github.com/Function-Delivery-Network/virtual-kubelet/errdefs"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,6 +51,9 @@ type FDNProvider struct { // nolint:golint
 	serverlessPlatformName    string
 	serverlessPlatformApiHost string
 	serverlessPlatformAuth    string
+	minioEndpoint             string
+	minioAccessKeyID          string
+	minioSecretAccessKey      string
 	pods                      map[string]*corev1.Pod
 	config                    FDNConfig
 	startTime                 time.Time
@@ -67,7 +73,8 @@ type FDNConfig struct { // nolint:golint
 
 // NewFDNProviderConfig creates a new MockV0Provider. Mock legacy provider does not implement the new asynchronous podnotifier interface
 func NewFDNProviderConfig(config FDNConfig, nodeName, operatingSystem string, internalIP string, daemonEndpointPort int32,
-	serverlessPlatformName string, serverlessPlatformApiHost string, serverlessPlatformAuth string) (*FDNProvider, error) {
+	serverlessPlatformName string, serverlessPlatformApiHost string, serverlessPlatformAuth string, minioEndpoint string,
+	minioAccessKeyID string, minioSecretAccessKey string) (*FDNProvider, error) {
 	// set defaults
 	if config.CPU == "" {
 		config.CPU = defaultCPUCapacity
@@ -86,6 +93,9 @@ func NewFDNProviderConfig(config FDNConfig, nodeName, operatingSystem string, in
 		serverlessPlatformName:    serverlessPlatformName,
 		serverlessPlatformApiHost: serverlessPlatformApiHost,
 		serverlessPlatformAuth:    serverlessPlatformAuth,
+		minioEndpoint:             minioEndpoint,
+		minioAccessKeyID:          minioAccessKeyID,
+		minioSecretAccessKey:      minioSecretAccessKey,
 		pods:                      make(map[string]*corev1.Pod),
 		config:                    config,
 		startTime:                 time.Now(),
@@ -96,14 +106,16 @@ func NewFDNProviderConfig(config FDNConfig, nodeName, operatingSystem string, in
 
 // NewMockProvider creates a new MockProvider, which implements the PodNotifier interface
 func NewFDNProvider(providerConfig, nodeName, operatingSystem string, internalIP string, daemonEndpointPort int32,
-	serverlessPlatformName string, serverlessPlatformApiHost string, serverlessPlatformAuth string) (*FDNProvider, error) {
+	serverlessPlatformName string, serverlessPlatformApiHost string, serverlessPlatformAuth string, minioEndpoint string,
+	minioAccessKeyID string, minioSecretAccessKey string) (*FDNProvider, error) {
 	config, err := loadConfig(providerConfig, nodeName)
 	if err != nil {
 		return nil, err
 	}
 
 	return NewFDNProviderConfig(config, nodeName, operatingSystem, internalIP, daemonEndpointPort,
-		serverlessPlatformName, serverlessPlatformApiHost, serverlessPlatformAuth)
+		serverlessPlatformName, serverlessPlatformApiHost, serverlessPlatformAuth, minioEndpoint,
+		minioAccessKeyID, minioSecretAccessKey)
 }
 
 // loadConfig loads the given json configuration files.
@@ -203,18 +215,28 @@ func (p *FDNProvider) CreatePod(ctx context.Context, pod *corev1.Pod) (err error
 	}
 
 	p.pods[key] = pod
-	p.notifier(pod)
+
+	// Initialize minio client object.
+	log.G(ctx).Infof("Initialize minio client object.\n")
+	minioClient, err := minio.New(p.minioEndpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(p.minioAccessKeyID, p.minioSecretAccessKey, ""),
+		Secure: false,
+	})
+	if err != nil {
+		log.G(ctx).Errorf("Initialize minio client failed: %v.\n", err)
+	}
+	log.G(ctx).Infof("Initialized minio client object successfully.\n")
 
 	if p.serverlessPlatformName == "openwhisk" {
 		log.G(ctx).Infof("serverless platform : %s", p.serverlessPlatformName)
-		err := openwhisk.CreateServerlessFunctionOW(p.serverlessPlatformApiHost, p.serverlessPlatformAuth, pod)
+		err := openwhisk.CreateServerlessFunctionOW(ctx, p.serverlessPlatformApiHost, p.serverlessPlatformAuth, pod, minioClient)
 		if err != nil {
 			log.G(ctx).Infof("Failed to create pod: %v.\n", err)
 			return err
 		}
 
 	}
-
+	p.notifier(pod)
 	return nil
 }
 
@@ -228,15 +250,51 @@ func (p *FDNProvider) UpdatePod(ctx context.Context, pod *corev1.Pod) (err error
 func (p *FDNProvider) DeletePod(ctx context.Context, pod *corev1.Pod) (err error) {
 	// Deregister job
 
+	ctx, span := trace.StartSpan(ctx, "DeletePod")
+	defer span.End()
+
+	// Add the pod's coordinates to the current span.
+	ctx = addAttributes(ctx, span, namespaceKey, pod.Namespace, nameKey, pod.Name)
+
+	log.G(ctx).Infof("receive DeletePod %q", pod.Name)
+
+	key, err := buildKey(pod)
+	if err != nil {
+		return err
+	}
+
+	if _, exists := p.pods[key]; !exists {
+		return errdefs.NotFound("pod not found")
+	}
+
 	if p.serverlessPlatformName == "openwhisk" {
 		log.G(ctx).Infof("serverless platform : %s", p.serverlessPlatformName)
-		err := openwhisk.DeleteServerlessFunctionOW(p.serverlessPlatformApiHost, p.serverlessPlatformAuth, pod)
+		err := openwhisk.DeleteServerlessFunctionOW(ctx, p.serverlessPlatformApiHost, p.serverlessPlatformAuth, pod)
 		if err != nil {
 			log.G(ctx).Infof("Failed to delete pod: %v.\n", err)
 			return err
 		}
 	}
 	log.G(ctx).Infof("deleted serverless application %q response\n", pod.Name)
+
+	now := metav1.Now()
+	delete(p.pods, key)
+	pod.Status.Phase = corev1.PodSucceeded
+	pod.Status.Reason = "FDNProviderPodDeleted"
+
+	for idx := range pod.Status.ContainerStatuses {
+		pod.Status.ContainerStatuses[idx].Ready = false
+		pod.Status.ContainerStatuses[idx].State = corev1.ContainerState{
+			Terminated: &corev1.ContainerStateTerminated{
+				Message:    "FDN provider terminated container upon deletion",
+				FinishedAt: now,
+				Reason:     "FDNProviderPodContainerDeleted",
+				StartedAt:  pod.Status.ContainerStatuses[idx].State.Running.StartedAt,
+			},
+		}
+	}
+
+	p.notifier(pod)
 
 	return nil
 }
@@ -245,10 +303,30 @@ func (p *FDNProvider) DeletePod(ctx context.Context, pod *corev1.Pod) (err error
 // if pod is not found.
 func (p *FDNProvider) GetPod(ctx context.Context, namespace, name string) (pod *corev1.Pod, err error) {
 
+	ctx, span := trace.StartSpan(ctx, "GetPod")
+	defer func() {
+		span.SetStatus(err)
+		span.End()
+	}()
+
+	// Add the pod's coordinates to the current span.
+	ctx = addAttributes(ctx, span, namespaceKey, namespace, nameKey, name)
+
+	log.G(ctx).Infof("receive GetPod %q", name)
+
+	// key, err := buildKeyFromNames(namespace, name)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// if pod, ok := p.pods[key]; ok {
+	// 	return pod, nil
+	// }
+
 	// Get serverless function
 	if p.serverlessPlatformName == "openwhisk" {
 		log.G(ctx).Infof("serverless platform : %s", p.serverlessPlatformName)
-		function, err := openwhisk.GetServerlessFunctionOW(p.serverlessPlatformApiHost, p.serverlessPlatformAuth, name)
+		function, err := openwhisk.GetServerlessFunctionOW(ctx, p.serverlessPlatformApiHost, p.serverlessPlatformAuth, name)
 		if err != nil {
 			log.G(ctx).Infof("Failed to get pod: %v.\n", err)
 			return nil, err
@@ -284,27 +362,39 @@ func (p *FDNProvider) RunInContainer(ctx context.Context, namespace, podName, co
 // GetPodStatus returns the status of a pod by name that is running as a job
 // in the FDN cluster returns nil if a pod by that name is not found.
 func (p *FDNProvider) GetPodStatus(ctx context.Context, namespace, name string) (*corev1.PodStatus, error) {
+	ctx, span := trace.StartSpan(ctx, "GetPodStatus")
+	defer span.End()
+
+	// Add namespace and name as attributes to the current span.
+	ctx = addAttributes(ctx, span, namespaceKey, namespace, nameKey, name)
+
+	log.G(ctx).Infof("receive GetPodStatus %q", name)
+
 	pod, err := p.GetPod(ctx, namespace, name)
 	if err != nil {
 		return nil, err
 	}
+
 	return &pod.Status, nil
 }
 
 // GetPods returns a list of all pods known to be running in Nomad nodes.
 func (p *FDNProvider) GetPods(ctx context.Context) ([]*corev1.Pod, error) {
-	log.G(ctx).Infof("GetPods\n")
+	ctx, span := trace.StartSpan(ctx, "GetPods")
+	defer span.End()
+
+	log.G(ctx).Info("receive GetPods")
+
+	var pods = []*corev1.Pod{}
 
 	if p.serverlessPlatformName == "openwhisk" {
 		log.G(ctx).Infof("serverless platform : %s", p.serverlessPlatformName)
 
-		functionsList, err := openwhisk.GetServerlessFunctionsOW(p.serverlessPlatformApiHost, p.serverlessPlatformAuth)
+		functionsList, err := openwhisk.GetServerlessFunctionsOW(ctx, p.serverlessPlatformApiHost, p.serverlessPlatformAuth)
 		if err != nil {
 			return nil, fmt.Errorf("couldn't get fn list from ow: %s", err)
 		}
-		var pods = []*corev1.Pod{}
 		for _, function := range functionsList {
-
 			// Change a function into a kubernetes pod
 			pod, err := openwhisk.FunctionToPod(&function, p.nodeName)
 			if err != nil {

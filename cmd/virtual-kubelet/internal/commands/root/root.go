@@ -21,13 +21,13 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/ansjin/virtual-kubelet/cmd/virtual-kubelet/internal/provider"
-	"github.com/ansjin/virtual-kubelet/errdefs"
-	"github.com/ansjin/virtual-kubelet/internal/manager"
-	"github.com/ansjin/virtual-kubelet/log"
-	"github.com/ansjin/virtual-kubelet/node"
-	"github.com/ansjin/virtual-kubelet/node/api"
-	"github.com/ansjin/virtual-kubelet/node/nodeutil"
+	"github.com/Function-Delivery-Network/virtual-kubelet/cmd/virtual-kubelet/internal/provider"
+	"github.com/Function-Delivery-Network/virtual-kubelet/errdefs"
+	"github.com/Function-Delivery-Network/virtual-kubelet/internal/manager"
+	"github.com/Function-Delivery-Network/virtual-kubelet/log"
+	"github.com/Function-Delivery-Network/virtual-kubelet/node"
+	"github.com/Function-Delivery-Network/virtual-kubelet/node/api"
+	"github.com/Function-Delivery-Network/virtual-kubelet/node/nodeutil"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -80,16 +80,20 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 			return nil, nil, errors.Wrap(err, "could not create resource manager")
 		}
 		initConfig := provider.InitConfig{
-			ConfigPath:        c.ProviderConfigPath,
-			NodeName:          c.NodeName,
-			OperatingSystem:   c.OperatingSystem,
-			ResourceManager:   rm,
-			DaemonPort:        c.ListenPort,
-			InternalIP:        os.Getenv("VKUBELET_POD_IP"),
-			KubeClusterDomain: c.KubeClusterDomain,
-			ServerlessPlatformName: c.ServerlessPlatformName,
+			ConfigPath:                c.ProviderConfigPath,
+			NodeName:                  c.NodeName,
+			OperatingSystem:           c.OperatingSystem,
+			ResourceManager:           rm,
+			DaemonPort:                c.ListenPort,
+			InternalIP:                os.Getenv("VKUBELET_POD_IP"),
+			KubeClusterDomain:         c.KubeClusterDomain,
+			ServerlessPlatformName:    c.ServerlessPlatformName,
 			ServerlessPlatformApiHost: c.ServerlessPlatformApiHost,
-			ServerlessPlatformAuth: c.ServerlessPlatformAuth,
+			ServerlessPlatformAuth:    c.ServerlessPlatformAuth,
+			MinioEndpoint:             c.MinioEndpoint,
+			MinioAccessKeyID:          c.MinioAccessKeyID,
+			MinioSecretAccessKey:      c.MinioSecretAccessKey,
+			
 		}
 		pInit := s.Get(c.Provider)
 		if pInit == nil {

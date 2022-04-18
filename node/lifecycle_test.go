@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ansjin/virtual-kubelet/errdefs"
-	"github.com/ansjin/virtual-kubelet/log"
-	logruslogger "github.com/ansjin/virtual-kubelet/log/logrus"
+	"github.com/Function-Delivery-Network/virtual-kubelet/errdefs"
+	"github.com/Function-Delivery-Network/virtual-kubelet/log"
+	logruslogger "github.com/Function-Delivery-Network/virtual-kubelet/log/logrus"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/assert"

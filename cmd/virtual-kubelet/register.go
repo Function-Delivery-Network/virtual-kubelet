@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/ansjin/virtual-kubelet/cmd/virtual-kubelet/internal/provider"
-	"github.com/ansjin/virtual-kubelet/cmd/virtual-kubelet/internal/provider/mock"
-	"github.com/ansjin/virtual-kubelet/cmd/virtual-kubelet/internal/provider/fdn"
+	"github.com/Function-Delivery-Network/virtual-kubelet/cmd/virtual-kubelet/internal/provider"
+	"github.com/Function-Delivery-Network/virtual-kubelet/cmd/virtual-kubelet/internal/provider/fdn"
+	"github.com/Function-Delivery-Network/virtual-kubelet/cmd/virtual-kubelet/internal/provider/mock"
 )
 
 func registerMock(s *provider.Store) {
@@ -26,6 +26,9 @@ func registerMock(s *provider.Store) {
 			cfg.ServerlessPlatformName,
 			cfg.ServerlessPlatformApiHost,
 			cfg.ServerlessPlatformAuth,
+			cfg.MinioEndpoint,
+			cfg.MinioAccessKeyID, 
+			cfg.MinioSecretAccessKey,
 		)
 	})
 }

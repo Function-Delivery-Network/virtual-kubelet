@@ -20,11 +20,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ansjin/virtual-kubelet/internal/queue"
+	"github.com/Function-Delivery-Network/virtual-kubelet/internal/queue"
 
-	"github.com/ansjin/virtual-kubelet/internal/podutils"
-	"github.com/ansjin/virtual-kubelet/log"
-	"github.com/ansjin/virtual-kubelet/trace"
+	"github.com/Function-Delivery-Network/virtual-kubelet/internal/podutils"
+	"github.com/Function-Delivery-Network/virtual-kubelet/log"
+	"github.com/Function-Delivery-Network/virtual-kubelet/trace"
 	"github.com/google/go-cmp/cmp"
 	pkgerrors "github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"

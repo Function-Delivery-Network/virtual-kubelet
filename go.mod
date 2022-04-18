@@ -1,4 +1,4 @@
-module github.com/ansjin/virtual-kubelet
+module github.com/Function-Delivery-Network/virtual-kubelet
 
 go 1.15
 
@@ -12,10 +12,11 @@ require (
 	github.com/elazarl/goproxy/ext v0.0.0-20190711103511-473e67f1d7d2 // indirect
 	github.com/google/go-cmp v0.5.2
 	github.com/gorilla/mux v1.7.3
+	github.com/minio/minio-go/v7 v7.0.24
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.7.1
-	github.com/sirupsen/logrus v1.6.0
+	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/pflag v1.0.5
 	go.opencensus.io v0.22.2

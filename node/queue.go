@@ -1,7 +1,7 @@
 package node
 
 import (
-	"github.com/ansjin/virtual-kubelet/internal/queue"
+	"github.com/Function-Delivery-Network/virtual-kubelet/internal/queue"
 )
 
 // These are exportable definitions of the queue package:

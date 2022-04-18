@@ -7,8 +7,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/watch"
 
-	"github.com/ansjin/virtual-kubelet/internal/test/e2e/framework"
-	"github.com/ansjin/virtual-kubelet/internal/test/suite"
+	"github.com/Function-Delivery-Network/virtual-kubelet/internal/test/e2e/framework"
+	"github.com/Function-Delivery-Network/virtual-kubelet/internal/test/suite"
 )
 
 const defaultWatchTimeout = 2 * time.Minute

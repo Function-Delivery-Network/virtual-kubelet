@@ -15,7 +15,7 @@
 package root
 
 import (
-	"github.com/ansjin/virtual-kubelet/errdefs"
+	"github.com/Function-Delivery-Network/virtual-kubelet/errdefs"
 	corev1 "k8s.io/api/core/v1"
 )
 

@@ -22,8 +22,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ansjin/virtual-kubelet/errdefs"
-	"github.com/ansjin/virtual-kubelet/log"
+	"github.com/Function-Delivery-Network/virtual-kubelet/errdefs"
+	"github.com/Function-Delivery-Network/virtual-kubelet/log"
 	"github.com/pkg/errors"
 	octrace "go.opencensus.io/trace"
 	"go.opencensus.io/zpages"

@@ -17,7 +17,7 @@ package root
 import (
 	"testing"
 
-	"github.com/ansjin/virtual-kubelet/errdefs"
+	"github.com/Function-Delivery-Network/virtual-kubelet/errdefs"
 	"go.opencensus.io/trace"
 )
 

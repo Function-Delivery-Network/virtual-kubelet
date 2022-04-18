@@ -20,8 +20,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ansjin/virtual-kubelet/log"
-	"github.com/ansjin/virtual-kubelet/trace"
+	"github.com/Function-Delivery-Network/virtual-kubelet/log"
+	"github.com/Function-Delivery-Network/virtual-kubelet/trace"
 	octrace "go.opencensus.io/trace"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"

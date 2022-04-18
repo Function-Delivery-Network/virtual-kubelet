@@ -1,18 +1,29 @@
 package openwhisk
 
 import (
-	"fmt"
-	"log"
+	"context"
 	"net/http"
+	"os"
+	"io"
+    "io/ioutil"
+	"strconv"
 
 	"time"
 
+	"github.com/Function-Delivery-Network/virtual-kubelet/log"
 	"github.com/apache/openwhisk-client-go/whisk"
+	"github.com/minio/minio-go/v7"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-
+// openfaas provider constants
+const (
+	defaultFunctionMemory = 256
+	defaultFunctionTimeout = 60000
+	defaultFunctionConcurrency = 100
+	defaultFunctionLogSize = 80
+)
 type openWhiskPlatformClient struct {
 	apiHost     string
 	auth        string
@@ -23,70 +34,113 @@ type openWhiskPlatformClient struct {
 
 // createFunctions takes the containers in a kubernetes pod and creates
 // a list of serverless functions from them.
-func CreateServerlessFunctionOW(apiHost string, auth string, pod *v1.Pod) error {
+func CreateServerlessFunctionOW(ctx context.Context, apiHost string, auth string, pod *v1.Pod, minioClient *minio.Client) error {
 	config := &whisk.Config{
-		Host: apiHost,
-		Version: "v1",
-		Verbose: true,
+		Host:      apiHost,
+		Version:   "v1",
+		Verbose:   true,
 		Namespace: "_",
 		AuthToken: auth,
-		Debug: true,
-		Insecure: true,
-	  }
-	  client, err := whisk.NewClient(http.DefaultClient, config)
+		Debug:     true,
+		Insecure:  true,
+	}
+	client, err := whisk.NewClient(http.DefaultClient, config)
 
-	  if err != nil {
-		err = fmt.Errorf("failed to connect to ow client %v", err)
+	if err != nil {
+		log.G(ctx).Errorf("Initialize minio client failed: %v.\n", err)
 		return err
 	}
-
-	
-
 	for _, ctr := range pod.Spec.Containers {
-		//image := ctr.Image
-		mycode := "function main(params) { return {payload:\"Hello \"+params.name}}"
-		funExec := &whisk.Exec{Kind: "nodejs:12", Code: &mycode}
+		bucket_name := ""
+		object_name := ""
+
+		memory := defaultFunctionMemory
+		timeout := defaultFunctionTimeout
+		concurrency := defaultFunctionConcurrency
+		logSize := defaultFunctionLogSize
+		for _, s := range ctr.Env {
+			if(s.Name == "BUCKET_NAME"){
+				bucket_name = s.Value	
+			}
+			if(s.Name == "OBJECT_NAME"){
+				object_name = s.Value	
+			}
+			if(s.Name == "FUNCTION_MEMORY"){
+				number,_ := strconv.ParseUint(s.Value, 10, 32)
+				memory = int(number)
+			}
+			if(s.Name == "FUNCTION_TIMEOUT"){
+				number,_ := strconv.ParseUint(s.Value, 10, 32)
+				timeout = int(number)
+			}
+			if(s.Name == "FUNCTION_CONCURRENCY"){
+				number,_ := strconv.ParseUint(s.Value, 10, 32)
+				concurrency = int(number)
+			}
+			if(s.Name == "FUNCTION_LOGSIZE"){
+				number,_ := strconv.ParseUint(s.Value, 10, 32)
+				logSize = int(number)
+			}
+		}
+		object, err := minioClient.GetObject(context.Background(), bucket_name, object_name, minio.GetObjectOptions{})
+		if err != nil {
+			log.G(ctx).Errorf(" minio GetObject failed: %v.\n", err)
+			return err
+		}
+		localFile, err := os.Create("/tmp/funcode")
+		if err != nil {
+			log.G(ctx).Errorf(" cannot create file failed: %v.\n", err)
+			return err
+		}
+		if _, err = io.Copy(localFile, object); err != nil {
+			log.G(ctx).Errorf("file save failed: %v.\n", err)
+			return err
+		}
+		content, err := ioutil.ReadFile("/tmp/funcode")
+		if err != nil {
+			log.G(ctx).Errorf("file read failed: %v.\n", err)
+			return err
+		}
+		
+
+		log.G(ctx).Errorf("Environment Variables: %v.\n", ctr.Env)
+		// Convert []byte to string and print to screen
+		mycode := string(content)
+		log.G(ctx).Errorf("Code: %v.\n", mycode)
+		
+		funExec := &whisk.Exec{Image: ctr.Image, Kind: "blackbox", Code: &mycode}
+		funcLimits := &whisk.Limits{Memory: &memory, Timeout: &timeout, Concurrency: &concurrency, Logsize: &logSize}
 
 		serverlessFunction := &whisk.Action{
-			Name:   ctr.Name,
+			Name: ctr.Name,
 			Exec: funExec,
-			// Config: map[string]interface{}{
-			// 	"image":    image,
-			// 	"port_map": portMap,
-			// 	"labels":   labels,
-			// 	// TODO: Add volumes support
-			// 	"command": strings.Join(command, ""),
-			// 	"args":    args,
-			// },
-			// Resources: resources,
-			// Env:       envVars,
+			Limits: funcLimits,
 		}
 		_, resp, err := client.Actions.Insert(serverlessFunction, true)
 		if err != nil {
-			err = fmt.Errorf("failed to create ow function %v", err)
+			log.G(ctx).Errorf("failed to create ow function: %v.\n", err)
 			return err
 		}
-
-		log.Println("Returned with status: ", resp.Status)
+		log.G(ctx).Infof("Returned with status: %v.\n", resp.Status)
 	}
 
 	return nil
 }
 
-func DeleteServerlessFunctionOW(apiHost string, auth string, pod *v1.Pod) error {
+func DeleteServerlessFunctionOW(ctx context.Context, apiHost string, auth string, pod *v1.Pod) error {
 	config := &whisk.Config{
-		Host: apiHost,
-		Version: "v1",
-		Verbose: true,
+		Host:      apiHost,
+		Version:   "v1",
+		Verbose:   true,
 		Namespace: "_",
 		AuthToken: auth,
-		Debug: true,
-		Insecure: true,
-	  }
-	  client, err := whisk.NewClient(http.DefaultClient, config)
+		Debug:     true,
+		Insecure:  true,
+	}
+	client, err := whisk.NewClient(http.DefaultClient, config)
 
-	  if err != nil {
-		err = fmt.Errorf("failed to connect to ow client %v", err)
+	if err != nil {
+		log.G(ctx).Errorf("failed to connect to ow client: %v.\n", err)
 		return err
 	}
 
@@ -94,56 +148,56 @@ func DeleteServerlessFunctionOW(apiHost string, auth string, pod *v1.Pod) error 
 		//image := ctr.Image
 		resp, err := client.Actions.Delete(ctr.Name)
 		if err != nil {
-			err = fmt.Errorf("failed to delete ow function %v", err)
-			return nil
+			log.G(ctx).Errorf("failed to  delete ow function: %v.\n", err)
+			return err
 		}
 
-		log.Println("Returned with status: ", resp.Status)
+		log.G(ctx).Infof("Returned with status: %v.\n", resp.Status)
 	}
 
 	return nil
 }
 
-func GetServerlessFunctionOW(apiHost string, auth string, name string) (*whisk.Action, error) {
+func GetServerlessFunctionOW(ctx context.Context, apiHost string, auth string, name string) (*whisk.Action, error) {
 	config := &whisk.Config{
-		Host: apiHost,
-		Version: "v1",
-		Verbose: true,
+		Host:      apiHost,
+		Version:   "v1",
+		Verbose:   true,
 		Namespace: "_",
 		AuthToken: auth,
-		Debug: true,
-		Insecure: true,
-	  }
-	  client, err := whisk.NewClient(http.DefaultClient, config)
+		Debug:     true,
+		Insecure:  true,
+	}
+	client, err := whisk.NewClient(http.DefaultClient, config)
 
-	  if err != nil {
-		err = fmt.Errorf("failed to connect to ow client %v", err)
+	if err != nil {
+		log.G(ctx).Errorf("failed to connect to ow client: %v.\n", err)
 		return nil, err
 	}
 	action, resp, err := client.Actions.Get(name, false)
 	if err != nil {
-		err = fmt.Errorf("failed to connect to get action %v", err)
+		log.G(ctx).Errorf("failed to connect to get action: %v.\n", err)
 		return nil, err
 	}
-	log.Println("Returned with status: ", resp.Status)
+	log.G(ctx).Infof("Returned with status: %v.\n", resp.Status)
 
 	return action, nil
 }
 
-func GetServerlessFunctionsOW(apiHost string, auth string) ([]whisk.Action, error) {
+func GetServerlessFunctionsOW(ctx context.Context, apiHost string, auth string) ([]whisk.Action, error) {
 	config := &whisk.Config{
-		Host: apiHost,
-		Version: "v1",
-		Verbose: true,
+		Host:      apiHost,
+		Version:   "v1",
+		Verbose:   true,
 		Namespace: "_",
 		AuthToken: auth,
-		Debug: true,
-		Insecure: true,
-	  }
-	  client, err := whisk.NewClient(http.DefaultClient, config)
+		Debug:     true,
+		Insecure:  true,
+	}
+	client, err := whisk.NewClient(http.DefaultClient, config)
 
-	  if err != nil {
-		err = fmt.Errorf("failed to connect to ow client %v", err)
+	if err != nil {
+		log.G(ctx).Errorf("failed to connect to ow client: %v.\n", err)
 		return nil, err
 	}
 
@@ -154,12 +208,11 @@ func GetServerlessFunctionsOW(apiHost string, auth string) ([]whisk.Action, erro
 
 	actions, resp, err := client.Actions.List("", options)
 	if err != nil {
-		err = fmt.Errorf("failed to get actions %v", err)
+		log.G(ctx).Errorf("failed to connect to get action: %v.\n", err)
 		return nil, err
 	}
-	log.Println("Returned with status: ", resp.Status)
-	log.Printf("Returned actions: \n %+v", actions)
-
+	log.G(ctx).Infof("Returned with status: %v.\n", resp.Status)
+	log.G(ctx).Infof("Returned actions: %v.\n", actions)
 	return actions, nil
 }
 
@@ -176,17 +229,17 @@ func FunctionToPod(action *whisk.Action, nodeName string) (*v1.Pod, error) {
 	})
 
 	containers = append(containers, v1.Container{
-		Name:    action.Name,
-		Image:   action.Exec.Image,
-		Ports:   containerPorts,
+		Name:  action.Name,
+		Image: action.Exec.Image,
+		Ports: containerPorts,
 	})
-	
+
 	readyFlag := true
 	containerStatus := v1.ContainerStatus{
 		Name:         action.Name,
 		RestartCount: int32(0),
 		Ready:        readyFlag,
-		State:        v1.ContainerState{
+		State: v1.ContainerState{
 			Running: &v1.ContainerStateRunning{
 				StartedAt: metav1.NewTime(time.Unix(275, 0)),
 			},
@@ -224,7 +277,6 @@ func FunctionToPod(action *whisk.Action, nodeName string) (*v1.Pod, error) {
 
 	return &pod, nil
 }
-
 
 func jobStatusToPodPhase(status string) v1.PodPhase {
 	switch status {
@@ -310,4 +362,3 @@ func convertFunctionStatusToPodCondition(jobStatus string) v1.PodCondition {
 
 // 	return containerState, readyFlag
 // }
-

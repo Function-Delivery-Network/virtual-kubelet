@@ -18,7 +18,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ansjin/virtual-kubelet/log"
+	"github.com/Function-Delivery-Network/virtual-kubelet/log"
 	"github.com/gorilla/mux"
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/plugin/ochttp/propagation/b3"

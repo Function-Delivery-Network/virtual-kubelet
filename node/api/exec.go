@@ -21,8 +21,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ansjin/virtual-kubelet/errdefs"
-	"github.com/ansjin/virtual-kubelet/internal/kubernetes/remotecommand"
+	"github.com/Function-Delivery-Network/virtual-kubelet/errdefs"
+	"github.com/Function-Delivery-Network/virtual-kubelet/internal/kubernetes/remotecommand"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/types"
