@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Function-Delivery-Network/virtual-kubelet/cmd/virtual-kubelet/internal/provider/fdn/openwhisk"
+	"github.com/Function-Delivery-Network/virtual-kubelet/cmd/virtual-kubelet/internal/provider/fdn/openfaas"
 	"github.com/Function-Delivery-Network/virtual-kubelet/log"
 	"github.com/Function-Delivery-Network/virtual-kubelet/node/api"
 	stats "github.com/Function-Delivery-Network/virtual-kubelet/node/api/statsv1alpha1"
@@ -236,6 +237,15 @@ func (p *FDNProvider) CreatePod(ctx context.Context, pod *corev1.Pod) (err error
 		}
 
 	}
+	if p.serverlessPlatformName == "openfaas" {
+		log.G(ctx).Infof("serverless platform : %s", p.serverlessPlatformName)
+		err := openfaas.CreateServerlessFunctionOF(ctx, p.serverlessPlatformApiHost, p.serverlessPlatformAuth, pod, minioClient)
+		if err != nil {
+			log.G(ctx).Infof("Failed to create pod: %v.\n", err)
+			return err
+		}
+
+	}
 	p.notifier(pod)
 	return nil
 }
@@ -270,6 +280,14 @@ func (p *FDNProvider) DeletePod(ctx context.Context, pod *corev1.Pod) (err error
 	if p.serverlessPlatformName == "openwhisk" {
 		log.G(ctx).Infof("serverless platform : %s", p.serverlessPlatformName)
 		err := openwhisk.DeleteServerlessFunctionOW(ctx, p.serverlessPlatformApiHost, p.serverlessPlatformAuth, pod)
+		if err != nil {
+			log.G(ctx).Infof("Failed to delete pod: %v.\n", err)
+			return err
+		}
+	}
+	if p.serverlessPlatformName == "openfaas" {
+		log.G(ctx).Infof("serverless platform : %s", p.serverlessPlatformName)
+		err := openfaas.DeleteServerlessFunctionOF(ctx, p.serverlessPlatformApiHost, p.serverlessPlatformAuth, pod)
 		if err != nil {
 			log.G(ctx).Infof("Failed to delete pod: %v.\n", err)
 			return err
@@ -333,6 +351,21 @@ func (p *FDNProvider) GetPod(ctx context.Context, namespace, name string) (pod *
 		}
 		// Change a serverless function into a kubernetes pod
 		pod, err = openwhisk.FunctionToPod(function, p.nodeName)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't convert a serverless function into a pod: %s", err)
+		}
+		log.G(ctx).Infof("send function as pod :  %s", pod.Name)
+		return pod, nil
+	}
+	if p.serverlessPlatformName == "openfaas" {
+		log.G(ctx).Infof("serverless platform : %s", p.serverlessPlatformName)
+		function, err := openfaas.GetServerlessFunctionOF(ctx, p.serverlessPlatformApiHost, p.serverlessPlatformAuth, name)
+		if err != nil {
+			log.G(ctx).Infof("Failed to get pod: %v.\n", err)
+			return nil, err
+		}
+		// Change a serverless function into a kubernetes pod
+		pod, err = openfaas.FunctionToPod(function, p.nodeName)
 		if err != nil {
 			return nil, fmt.Errorf("couldn't convert a serverless function into a pod: %s", err)
 		}
@@ -405,9 +438,25 @@ func (p *FDNProvider) GetPods(ctx context.Context) ([]*corev1.Pod, error) {
 		}
 		return pods, nil
 	}
+	if p.serverlessPlatformName == "openfaas" {
+		log.G(ctx).Infof("serverless platform : %s", p.serverlessPlatformName)
 
+		functionsList, err := openfaas.GetServerlessFunctionsOF(ctx, p.serverlessPlatformApiHost, p.serverlessPlatformAuth)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't get fn list from OF: %s", err)
+		}
+		for _, function := range functionsList {
+			// Change a function into a kubernetes pod
+			pod, err := openfaas.FunctionToPod(&function, p.nodeName)
+			if err != nil {
+				return nil, fmt.Errorf("couldn't convert a OF function into a pod: %s", err)
+			}
+
+			pods = append(pods, pod)
+		}
+		return pods, nil
+	}
 	return nil, nil
-
 }
 
 func (p *FDNProvider) ConfigureNode(ctx context.Context, n *corev1.Node) { // nolint:golint
