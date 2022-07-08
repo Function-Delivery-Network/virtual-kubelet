@@ -174,8 +174,8 @@ The overall idea is for every virtual-kubelet node within FDN-provider acts as a
 FDN-provider virtual-kubelet contains mapping for creating and deleting functions. 
 
 #### Currently following serverless frameworks are supported as part of FDN-Provider
-- [ ] OpenFaaS
-- [x] OpenWhisk (not completely)
+- [x] OpenFaaS
+- [x] OpenWhisk
 - [ ] AWS Lambda 
 - [ ] Google Cloud Functions 
 
