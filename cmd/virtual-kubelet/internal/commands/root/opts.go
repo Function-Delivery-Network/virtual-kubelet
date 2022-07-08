@@ -85,14 +85,15 @@ type Opts struct {
 	TraceConfig     TracingExporterOptions
 
 	// FaaS platform related data
-	ServerlessPlatformName string
-	ServerlessPlatformApiHost	string
-	ServerlessPlatformAuth string
+	ServerlessPlatformName    string
+	ServerlessPlatformApiHost string
+	ServerlessPlatformAuth    string
+	ServerlessPlatformConfigBucket string
+	ServerlessPlatformConfigBucketObject string
 
-	MinioEndpoint             string
-	MinioAccessKeyID          string
-	MinioSecretAccessKey      string
-
+	MinioEndpoint        string
+	MinioAccessKeyID     string
+	MinioSecretAccessKey string
 
 	// Startup Timeout is how long to wait for the kubelet to start
 	StartupTimeout time.Duration

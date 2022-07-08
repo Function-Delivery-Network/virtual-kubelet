@@ -90,10 +90,11 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 			ServerlessPlatformName:    c.ServerlessPlatformName,
 			ServerlessPlatformApiHost: c.ServerlessPlatformApiHost,
 			ServerlessPlatformAuth:    c.ServerlessPlatformAuth,
+			ServerlessPlatformConfigBucket: c.ServerlessPlatformConfigBucket,
+			ServerlessPlatformConfigBucketObject: c.ServerlessPlatformConfigBucketObject,
 			MinioEndpoint:             c.MinioEndpoint,
 			MinioAccessKeyID:          c.MinioAccessKeyID,
 			MinioSecretAccessKey:      c.MinioSecretAccessKey,
-			
 		}
 		pInit := s.Get(c.Provider)
 		if pInit == nil {

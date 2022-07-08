@@ -22,6 +22,7 @@ import (
 // openfaas provider constants
 const (
 	defaultFunctionMemory      = 256
+	defaultFunctionCPU         = 200
 	defaultFunctionTimeout     = 60000
 	defaultFunctionConcurrency = 100
 	defaultFunctionLogSize     = 80
@@ -35,15 +36,26 @@ type openFaaSPlatformClient struct {
 	clusterName string
 }
 
-type FuncLimits struct {
+type FuncLimitsMem struct {
 	Memory string
 }
-type Func struct {
+type FuncMem struct {
 	Lang     string
 	Handler  string
 	Image    string
-	Limits   FuncLimits
-	Requests FuncLimits
+	Limits   FuncLimitsMem
+	Requests FuncLimitsMem
+}
+
+type FuncLimitsCpu struct {
+	Cpu string
+}
+type FuncCpu struct {
+	Lang     string
+	Handler  string
+	Image    string
+	Limits   FuncLimitsCpu
+	Requests FuncLimitsCpu
 }
 
 type OpenFaaSFunc struct {
@@ -55,9 +67,14 @@ type OpenFaaSProvider struct {
 	Gateway string
 }
 
-type OpenFaaSYaml struct {
+type OpenFaaSYamlMem struct {
 	Provider  OpenFaaSProvider
-	Functions map[string]Func
+	Functions map[string]FuncMem
+}
+
+type OpenFaaSYamlCpu struct {
+	Provider  OpenFaaSProvider
+	Functions map[string]FuncCpu
 }
 
 // createFunctions takes the containers in a kubernetes pod and creates
@@ -82,8 +99,10 @@ func CreateServerlessFunctionOF(ctx context.Context, apiHost string, auth string
 	for _, ctr := range pod.Spec.Containers {
 		bucket_name := ""
 		object_name := ""
+		cpu_specified := false
 
 		memory := defaultFunctionMemory
+		cpu := defaultFunctionCPU
 		for _, s := range ctr.Env {
 			if s.Name == "BUCKET_NAME" {
 				bucket_name = s.Value
@@ -94,6 +113,11 @@ func CreateServerlessFunctionOF(ctx context.Context, apiHost string, auth string
 			if s.Name == "FUNCTION_MEMORY" {
 				number, _ := strconv.ParseUint(s.Value, 10, 32)
 				memory = int(number)
+			}
+			if s.Name == "FUNCTION_CPU" {
+				number, _ := strconv.ParseUint(s.Value, 10, 32)
+				cpu = int(number)
+				cpu_specified = true
 			}
 			/* 			if(s.Name == "FUNCTION_TIMEOUT"){
 				number,_ := strconv.ParseUint(s.Value, 10, 32)
@@ -138,38 +162,70 @@ func CreateServerlessFunctionOF(ctx context.Context, apiHost string, auth string
 			Gateway: apiHost,
 		}
 
-		f1 := Func{
-			Lang:     "python3",
-			Handler:  "./" + ctr.Name,
-			Image:    ctr.Image,
-			Limits:   FuncLimits{Memory: strconv.Itoa(memory) + "Mi"},
-			Requests: FuncLimits{Memory: strconv.Itoa(memory) + "Mi"},
-		}
+		if cpu_specified == false {
+			f1 := FuncMem{
+				Lang:     "python3",
+				Handler:  "./" + ctr.Name,
+				Image:    ctr.Image,
+				Limits:   FuncLimitsMem{Memory: strconv.Itoa(memory) + "Mi"},
+				Requests: FuncLimitsMem{Memory: strconv.Itoa(memory) + "Mi"},
+			}
+			m := make(map[string]FuncMem)
+			m[ctr.Name] = f1
+			yaml1 := OpenFaaSYamlMem{
+				Provider:  s1,
+				Functions: m,
+			}
 
-		m := make(map[string]Func)
-		m[ctr.Name] = f1
+			yamlData, err := yaml.Marshal(&yaml1)
+			if err != nil {
+				log.G(ctx).Errorf("Error while Marshaling. %v \n", err)
+			}
+			err2 := ioutil.WriteFile("/tmp/func_deployment.yaml", yamlData, 0)
 
-		yaml1 := OpenFaaSYaml{
-			Provider:  s1,
-			Functions: m,
-		}
+			if err2 != nil {
 
-		yamlData, err := yaml.Marshal(&yaml1)
-		if err != nil {
-			log.G(ctx).Errorf("Error while Marshaling. %v \n", err)
-		}
-		err2 := ioutil.WriteFile("/tmp/func_deployment.yaml", yamlData, 0)
+				log.G(ctx).Errorf("file write failed: %v.\n", err2)
+				return err
+			} else {
 
-		if err2 != nil {
+				log.G(ctx).Infof("File written")
+			}
+			fmt.Println(" --- YAML ---")
+			fmt.Println(string(yamlData)) //
 
-			log.G(ctx).Errorf("file write failed: %v.\n", err2)
-			return err
 		} else {
+			f1 := FuncCpu{
+				Lang:     "python3",
+				Handler:  "./" + ctr.Name,
+				Image:    ctr.Image,
+				Limits:   FuncLimitsCpu{Cpu: strconv.Itoa(cpu) + "Mi"},
+				Requests: FuncLimitsCpu{Cpu: strconv.Itoa(cpu) + "Mi"},
+			}
+			m := make(map[string]FuncCpu)
+			m[ctr.Name] = f1
+			yaml1 := OpenFaaSYamlCpu{
+				Provider:  s1,
+				Functions: m,
+			}
 
-			log.G(ctx).Infof("File written")
+			yamlData, err := yaml.Marshal(&yaml1)
+			if err != nil {
+				log.G(ctx).Errorf("Error while Marshaling. %v \n", err)
+			}
+			err2 := ioutil.WriteFile("/tmp/func_deployment.yaml", yamlData, 0)
+
+			if err2 != nil {
+
+				log.G(ctx).Errorf("file write failed: %v.\n", err2)
+				return err
+			} else {
+
+				log.G(ctx).Infof("File written")
+			}
+			fmt.Println(" --- YAML ---")
+			fmt.Println(string(yamlData)) //
 		}
-		fmt.Println(" --- YAML ---")
-		fmt.Println(string(yamlData)) //
 
 		prg1 := "faas-cli"
 		out1, err1 := exec.Command(prg1, "template", "pull", "-f", "/tmp/func_deployment.yaml").Output()

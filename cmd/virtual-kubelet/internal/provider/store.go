@@ -62,19 +62,21 @@ func (s *Store) Exists(name string) bool {
 
 // InitConfig is the config passed to initialize a registered provider.
 type InitConfig struct {
-	ConfigPath                string
-	NodeName                  string
-	OperatingSystem           string
-	InternalIP                string
-	DaemonPort                int32
-	KubeClusterDomain         string
-	ServerlessPlatformName    string
-	ServerlessPlatformApiHost string
-	ServerlessPlatformAuth    string
-	MinioEndpoint             string
-	MinioAccessKeyID          string
-	MinioSecretAccessKey      string
-	ResourceManager           *manager.ResourceManager
+	ConfigPath                           string
+	NodeName                             string
+	OperatingSystem                      string
+	InternalIP                           string
+	DaemonPort                           int32
+	KubeClusterDomain                    string
+	ServerlessPlatformName               string
+	ServerlessPlatformApiHost            string
+	ServerlessPlatformAuth               string
+	ServerlessPlatformConfigBucket       string
+	ServerlessPlatformConfigBucketObject string
+	MinioEndpoint                        string
+	MinioAccessKeyID                     string
+	MinioSecretAccessKey                 string
+	ResourceManager                      *manager.ResourceManager
 }
 
 type InitFunc func(InitConfig) (Provider, error) // nolint:golint

@@ -23,5 +23,10 @@
     "cpu": "10",
     "memory": "32Gi",
     "pods": "128"
+  },
+  "vkubelet-fdn-public-cloud-1-gcf-0": {
+    "cpu": "10",
+    "memory": "32Gi",
+    "pods": "128"
   }
 }

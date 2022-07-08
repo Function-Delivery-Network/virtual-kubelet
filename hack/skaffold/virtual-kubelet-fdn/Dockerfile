@@ -6,6 +6,13 @@ ENV APISERVER_KEY_LOCATION /vkubelet-fdn-openwhisk-0-key.pem
 ENV KUBELET_PORT 10250
 RUN apk add curl
 RUN curl -sSL https://cli.openfaas.com | sh
+
+RUN apk add curl python3 py-crcmod bash libc6-compat && rm -rf /var/cache/apk/*
+
+RUN curl -sSL https://sdk.cloud.google.com > /tmp/gcl && bash /tmp/gcl --install-dir=/root --disable-prompts
+
+ENV PATH="${PATH}:/root/google-cloud-sdk/bin"
+RUN echo $PATH
 # Use the pre-built binary in "bin/virtual-kubelet".
 COPY bin/e2e/virtual-kubelet /virtual-kubelet
 # Copy the configuration file for the fdn provider.

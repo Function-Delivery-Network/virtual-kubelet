@@ -10,13 +10,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Function-Delivery-Network/virtual-kubelet/cmd/virtual-kubelet/internal/provider/fdn/openwhisk"
 	"github.com/Function-Delivery-Network/virtual-kubelet/cmd/virtual-kubelet/internal/provider/fdn/openfaas"
+	"github.com/Function-Delivery-Network/virtual-kubelet/cmd/virtual-kubelet/internal/provider/fdn/openwhisk"
+	"github.com/Function-Delivery-Network/virtual-kubelet/cmd/virtual-kubelet/internal/provider/fdn/gcf"
+	"github.com/Function-Delivery-Network/virtual-kubelet/errdefs"
 	"github.com/Function-Delivery-Network/virtual-kubelet/log"
 	"github.com/Function-Delivery-Network/virtual-kubelet/node/api"
 	stats "github.com/Function-Delivery-Network/virtual-kubelet/node/api/statsv1alpha1"
 	"github.com/Function-Delivery-Network/virtual-kubelet/trace"
-	"github.com/Function-Delivery-Network/virtual-kubelet/errdefs"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	corev1 "k8s.io/api/core/v1"
@@ -45,20 +46,22 @@ const (
 
 // MockProvider implements the virtual-kubelet provider interface and stores pods in memory.
 type FDNProvider struct { // nolint:golint
-	nodeName                  string
-	operatingSystem           string
-	internalIP                string
-	daemonEndpointPort        int32
-	serverlessPlatformName    string
-	serverlessPlatformApiHost string
-	serverlessPlatformAuth    string
-	minioEndpoint             string
-	minioAccessKeyID          string
-	minioSecretAccessKey      string
-	pods                      map[string]*corev1.Pod
-	config                    FDNConfig
-	startTime                 time.Time
-	notifier                  func(*corev1.Pod)
+	nodeName                             string
+	operatingSystem                      string
+	internalIP                           string
+	daemonEndpointPort                   int32
+	serverlessPlatformName               string
+	serverlessPlatformApiHost            string
+	serverlessPlatformAuth               string
+	serverlessPlatformConfigBucket       string
+	serverlessPlatformConfigBucketObject string
+	minioEndpoint                        string
+	minioAccessKeyID                     string
+	minioSecretAccessKey                 string
+	pods                                 map[string]*corev1.Pod
+	config                               FDNConfig
+	startTime                            time.Time
+	notifier                             func(*corev1.Pod)
 }
 
 var (
@@ -74,7 +77,7 @@ type FDNConfig struct { // nolint:golint
 
 // NewFDNProviderConfig creates a new MockV0Provider. Mock legacy provider does not implement the new asynchronous podnotifier interface
 func NewFDNProviderConfig(config FDNConfig, nodeName, operatingSystem string, internalIP string, daemonEndpointPort int32,
-	serverlessPlatformName string, serverlessPlatformApiHost string, serverlessPlatformAuth string, minioEndpoint string,
+	serverlessPlatformName string, serverlessPlatformApiHost string, serverlessPlatformAuth string, serverlessPlatformConfigBucket string, serverlessPlatformConfigBucketObject string, minioEndpoint string,
 	minioAccessKeyID string, minioSecretAccessKey string) (*FDNProvider, error) {
 	// set defaults
 	if config.CPU == "" {
@@ -87,19 +90,21 @@ func NewFDNProviderConfig(config FDNConfig, nodeName, operatingSystem string, in
 		config.Pods = defaultPodCapacity
 	}
 	provider := FDNProvider{
-		nodeName:                  nodeName,
-		operatingSystem:           operatingSystem,
-		internalIP:                internalIP,
-		daemonEndpointPort:        daemonEndpointPort,
-		serverlessPlatformName:    serverlessPlatformName,
-		serverlessPlatformApiHost: serverlessPlatformApiHost,
-		serverlessPlatformAuth:    serverlessPlatformAuth,
-		minioEndpoint:             minioEndpoint,
-		minioAccessKeyID:          minioAccessKeyID,
-		minioSecretAccessKey:      minioSecretAccessKey,
-		pods:                      make(map[string]*corev1.Pod),
-		config:                    config,
-		startTime:                 time.Now(),
+		nodeName:                             nodeName,
+		operatingSystem:                      operatingSystem,
+		internalIP:                           internalIP,
+		daemonEndpointPort:                   daemonEndpointPort,
+		serverlessPlatformName:               serverlessPlatformName,
+		serverlessPlatformApiHost:            serverlessPlatformApiHost,
+		serverlessPlatformAuth:               serverlessPlatformAuth,
+		serverlessPlatformConfigBucket:       serverlessPlatformConfigBucket,
+		serverlessPlatformConfigBucketObject: serverlessPlatformConfigBucketObject,
+		minioEndpoint:                        minioEndpoint,
+		minioAccessKeyID:                     minioAccessKeyID,
+		minioSecretAccessKey:                 minioSecretAccessKey,
+		pods:                                 make(map[string]*corev1.Pod),
+		config:                               config,
+		startTime:                            time.Now(),
 	}
 
 	return &provider, nil
@@ -107,7 +112,7 @@ func NewFDNProviderConfig(config FDNConfig, nodeName, operatingSystem string, in
 
 // NewMockProvider creates a new MockProvider, which implements the PodNotifier interface
 func NewFDNProvider(providerConfig, nodeName, operatingSystem string, internalIP string, daemonEndpointPort int32,
-	serverlessPlatformName string, serverlessPlatformApiHost string, serverlessPlatformAuth string, minioEndpoint string,
+	serverlessPlatformName string, serverlessPlatformApiHost string, serverlessPlatformAuth string,  serverlessPlatformConfigBucket string, serverlessPlatformConfigBucketObject string, minioEndpoint string,
 	minioAccessKeyID string, minioSecretAccessKey string) (*FDNProvider, error) {
 	config, err := loadConfig(providerConfig, nodeName)
 	if err != nil {
@@ -115,7 +120,7 @@ func NewFDNProvider(providerConfig, nodeName, operatingSystem string, internalIP
 	}
 
 	return NewFDNProviderConfig(config, nodeName, operatingSystem, internalIP, daemonEndpointPort,
-		serverlessPlatformName, serverlessPlatformApiHost, serverlessPlatformAuth, minioEndpoint,
+		serverlessPlatformName, serverlessPlatformApiHost, serverlessPlatformAuth, serverlessPlatformConfigBucket, serverlessPlatformConfigBucketObject, minioEndpoint,
 		minioAccessKeyID, minioSecretAccessKey)
 }
 
@@ -246,6 +251,16 @@ func (p *FDNProvider) CreatePod(ctx context.Context, pod *corev1.Pod) (err error
 		}
 
 	}
+
+	if p.serverlessPlatformName == "gcf" {
+		log.G(ctx).Infof("serverless platform : %s", p.serverlessPlatformName)
+		err := gcf.CreateServerlessFunctionGCF(ctx, p.serverlessPlatformApiHost, p.serverlessPlatformAuth, p.serverlessPlatformConfigBucket, p.serverlessPlatformConfigBucketObject, pod, minioClient)
+		if err != nil {
+			log.G(ctx).Infof("Failed to create pod: %v.\n", err)
+			return err
+		}
+
+	}
 	p.notifier(pod)
 	return nil
 }
@@ -277,6 +292,17 @@ func (p *FDNProvider) DeletePod(ctx context.Context, pod *corev1.Pod) (err error
 		return errdefs.NotFound("pod not found")
 	}
 
+	// Initialize minio client object.
+	log.G(ctx).Infof("Initialize minio client object.\n")
+	minioClient, err := minio.New(p.minioEndpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(p.minioAccessKeyID, p.minioSecretAccessKey, ""),
+		Secure: false,
+	})
+	if err != nil {
+		log.G(ctx).Errorf("Initialize minio client failed: %v.\n", err)
+	}
+	log.G(ctx).Infof("Initialized minio client object successfully.\n")
+
 	if p.serverlessPlatformName == "openwhisk" {
 		log.G(ctx).Infof("serverless platform : %s", p.serverlessPlatformName)
 		err := openwhisk.DeleteServerlessFunctionOW(ctx, p.serverlessPlatformApiHost, p.serverlessPlatformAuth, pod)
@@ -293,6 +319,16 @@ func (p *FDNProvider) DeletePod(ctx context.Context, pod *corev1.Pod) (err error
 			return err
 		}
 	}
+
+	if p.serverlessPlatformName == "gcf" {
+		log.G(ctx).Infof("serverless platform : %s", p.serverlessPlatformName)
+		err := gcf.DeleteServerlessFunctionGCF(ctx, p.serverlessPlatformApiHost, p.serverlessPlatformAuth, p.serverlessPlatformConfigBucket, p.serverlessPlatformConfigBucketObject, pod, minioClient)
+		if err != nil {
+			log.G(ctx).Infof("Failed to delete pod: %v.\n", err)
+			return err
+		}
+	}
+
 	log.G(ctx).Infof("deleted serverless application %q response\n", pod.Name)
 
 	now := metav1.Now()

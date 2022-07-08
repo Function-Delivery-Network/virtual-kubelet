@@ -90,11 +90,14 @@ func installFlags(flags *pflag.FlagSet, c *Opts) {
 	flags.StringVar(&c.ServerlessPlatformName, "serverless-platform-name", c.ServerlessPlatformName, "sets the name of the serverless platform")
 	flags.StringVar(&c.ServerlessPlatformApiHost, "serverless-platform-apihost", c.ServerlessPlatformApiHost, "sets the APIHost of the serverless platform")
 	flags.StringVar(&c.ServerlessPlatformAuth, "serverless-platform-auth", c.ServerlessPlatformAuth, "sets the Auth of the serverless platform")
+
+	flags.StringVar(&c.ServerlessPlatformConfigBucket, "serverless-platform-config-bucket", c.ServerlessPlatformConfigBucket, "sets the config-bucket of the serverless platform")
+	flags.StringVar(&c.ServerlessPlatformConfigBucketObject, "serverless-platform-config-object", c.ServerlessPlatformConfigBucketObject, "sets the config-object path of the serverless platform")
 	
 	flags.StringVar(&c.MinioEndpoint, "minio-endpoint", c.MinioEndpoint, "sets the endpoint of the minio")
 	flags.StringVar(&c.MinioAccessKeyID, "minio-accesskey-id", c.MinioAccessKeyID, "sets the accesskey-id of the minio")
 	flags.StringVar(&c.MinioSecretAccessKey, "minio-secret-accesskey", c.MinioSecretAccessKey, "sets the secret-access-key of the minio")
-	
+
 
 	flags.DurationVar(&c.InformerResyncPeriod, "full-resync-period", c.InformerResyncPeriod, "how often to perform a full resync of pods between kubernetes and the provider")
 	flags.DurationVar(&c.StartupTimeout, "startup-timeout", c.StartupTimeout, "How long to wait for the virtual-kubelet to start")
