@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"os/exec"
@@ -29,6 +30,7 @@ type GCFPlatformAuth struct {
 	Auth_provider_x509_cert_url string `json:"auth_provider_x509_cert_url"`
 	Client_x509_cert_url        string `json:"client_x509_cert_url"`
 }
+
 // openfaas provider constants
 const (
 	defaultFunctionMemory      = 256
@@ -45,7 +47,9 @@ type GCFFaaSFunc struct {
 
 // createFunctions takes the containers in a kubernetes pod and creates
 // a list of serverless functions from them.
-func CreateServerlessFunctionGCF(ctx context.Context, apiHost string, auth string, auth_bucket_name string, auth_object_name string, pod *v1.Pod, minioClient *minio.Client) error {
+func CreateServerlessFunctionGCF(ctx context.Context, apiHost string, auth string, auth_bucket_name string, auth_object_name string, region string, pod *v1.Pod, minioClient *minio.Client) error {
+
+	log.G(ctx).Infof("auth_bucket_name: %v auth_object_name:%v region:%v \n", auth_bucket_name, auth_object_name, region)
 
 	object, err := minioClient.GetObject(context.Background(), auth_bucket_name, auth_object_name, minio.GetObjectOptions{})
 	if err != nil {
@@ -63,7 +67,12 @@ func CreateServerlessFunctionGCF(ctx context.Context, apiHost string, auth strin
 	}
 	jsonFile, err := os.Open("/tmp/auth.json")
 	byteValue, _ := ioutil.ReadAll(jsonFile)
-
+	if err != nil {
+		log.G(ctx).Errorf("Reading auth json command failed: %v.\n", err)
+		return err
+	} else {
+		log.G(ctx).Infof("Reading authr command success: %v.\n", string(byteValue))
+	}
 	// we initialize our Users array
 	var gcfPlatformAuth GCFPlatformAuth
 
@@ -82,7 +91,6 @@ func CreateServerlessFunctionGCF(ctx context.Context, apiHost string, auth strin
 	for _, ctr := range pod.Spec.Containers {
 		bucket_name := ""
 		object_name := ""
-		region := ""
 		memory := defaultFunctionMemory
 		timeout := defaultFunctionTimeout
 		concurrency := defaultFunctionConcurrency
@@ -94,18 +102,15 @@ func CreateServerlessFunctionGCF(ctx context.Context, apiHost string, auth strin
 				object_name = s.Value
 			}
 			if s.Name == "FUNCTION_MEMORY" {
-				number,_ := strconv.ParseUint(s.Value, 10, 32)
+				number, _ := strconv.ParseUint(s.Value, 10, 32)
 				memory = int(number)
 			}
-			if s.Name == "FUNCTION_REGION" {
-				region = s.Value
+			if s.Name == "FUNCTION_TIMEOUT" {
+				number, _ := strconv.ParseUint(s.Value, 10, 32)
+				timeout = int(number) / 1000
 			}
-			if s.Name == "FUNCTION_TIMEOUT"{
-				number,_ := strconv.ParseUint(s.Value, 10, 32)
-				timeout = int(number)/1000
-			}
-			if s.Name == "FUNCTION_CONCURRENCY"{
-				number,_ := strconv.ParseUint(s.Value, 10, 32)
+			if s.Name == "FUNCTION_CONCURRENCY" {
+				number, _ := strconv.ParseUint(s.Value, 10, 32)
 				concurrency = int(number)
 			}
 		}
@@ -139,18 +144,18 @@ func CreateServerlessFunctionGCF(ctx context.Context, apiHost string, auth strin
 		mycode := string(content)
 		log.G(ctx).Infof("Code: %v.\n", mycode)
 
-		log.G(ctx).Infof("gcloud functions deploy %v --runtime=%v --region=%v --allow-unauthenticated --memory=%v --source=/tmp/%v --max-instances=%v --timeout=%v --trigger-http\n",  ctr.Name, ctr.Image, region, strconv.Itoa(memory), ctr.Name, strconv.Itoa(concurrency), strconv.Itoa(timeout))
+		log.G(ctx).Infof("gcloud functions deploy %v --runtime=%v --region=%v --allow-unauthenticated --memory=%v --source=/tmp/%v --max-instances=%v --timeout=%v --trigger-http\n", ctr.Name, ctr.Image, region, strconv.Itoa(memory), ctr.Name, strconv.Itoa(concurrency), strconv.Itoa(timeout))
 		prg1 := "gcloud"
-		out, err := exec.Command(prg1, "functions", "deploy", ctr.Name, 
-		"--runtime="+string(ctr.Image),  
-		"--region="+string(region), 
-		"--entry-point=handle",
-		"--allow-unauthenticated", 
-		"--memory="+strconv.Itoa(memory), 
-		"--source=/tmp/"+ ctr.Name,
-		"--max-instances="+ strconv.Itoa(concurrency), 
-		"--timeout="+ strconv.Itoa(timeout),
-		"--trigger-http").Output()
+		out, err := exec.Command(prg1, "functions", "deploy", ctr.Name,
+			"--runtime="+string(ctr.Image),
+			"--region="+string(region),
+			"--entry-point=handle",
+			"--allow-unauthenticated",
+			"--memory="+strconv.Itoa(memory),
+			"--source=/tmp/"+ctr.Name,
+			"--max-instances="+strconv.Itoa(concurrency),
+			"--timeout="+strconv.Itoa(timeout),
+			"--trigger-http").Output()
 		if err != nil {
 			log.G(ctx).Errorf("failed to create GCF function: %v.\n", err)
 			return err
@@ -161,7 +166,7 @@ func CreateServerlessFunctionGCF(ctx context.Context, apiHost string, auth strin
 	return nil
 }
 
-func DeleteServerlessFunctionGCF(ctx context.Context, apiHost string, auth string, auth_bucket_name string, auth_object_name string, pod *v1.Pod, minioClient *minio.Client) error {
+func DeleteServerlessFunctionGCF(ctx context.Context, apiHost string, auth string, auth_bucket_name string, auth_object_name string, region string, pod *v1.Pod, minioClient *minio.Client) error {
 
 	object, err := minioClient.GetObject(context.Background(), auth_bucket_name, auth_object_name, minio.GetObjectOptions{})
 	if err != nil {
@@ -204,14 +209,8 @@ func DeleteServerlessFunctionGCF(ctx context.Context, apiHost string, auth strin
 	}
 
 	for _, ctr := range pod.Spec.Containers {
-		region := ""
-		for _, s := range ctr.Env {
-			if s.Name == "FUNCTION_REGION" {
-				region = s.Value
-			}
-		}
 
-		resp, err := exec.Command("gcloud", "functions", "delete", ctr.Name ,"--quiet", "--region="+string(region)).Output()
+		resp, err := exec.Command("gcloud", "functions", "delete", ctr.Name, "--quiet", "--region="+string(region)).Output()
 
 		if err != nil {
 			log.G(ctx).Errorf("Executing gcloud delete command failed: %v.\n", err)
@@ -224,14 +223,158 @@ func DeleteServerlessFunctionGCF(ctx context.Context, apiHost string, auth strin
 	return nil
 }
 
-func GetServerlessFunctionGCF(ctx context.Context, apiHost string, auth string, name string) (error) {
+func GetServerlessFunctionGCF(ctx context.Context, apiHost string, auth string, auth_bucket_name string, auth_object_name string, region string, minioClient *minio.Client, name string) (*GCFFaaSFunc, error) {
 
-	return nil
+	object, err := minioClient.GetObject(context.Background(), auth_bucket_name, auth_object_name, minio.GetObjectOptions{})
+	if err != nil {
+		log.G(ctx).Errorf(" minio auth_object_name GetObject failed: %v.\n", err)
+		return nil, err
+	}
+	localFile, err := os.Create("/tmp/auth.json")
+	if err != nil {
+		log.G(ctx).Errorf(" cannot create auth.json file failed: %v.\n", err)
+		return nil, err
+	}
+	if _, err = io.Copy(localFile, object); err != nil {
+		log.G(ctx).Errorf("auth.json file save failed: %v.\n", err)
+		return nil, err
+	}
+	jsonFile, err := os.Open("/tmp/auth.json")
+	byteValue, _ := ioutil.ReadAll(jsonFile)
+
+	if err != nil {
+		log.G(ctx).Errorf("Reading auth json command failed: %v.\n", err)
+		return nil, err
+	} else {
+		log.G(ctx).Infof("Reading authr command success: %v.\n", string(byteValue))
+	}
+
+	// we initialize our Users array
+	var gcfPlatformAuth GCFPlatformAuth
+
+	// we unmarshal our byteArray which contains our
+	// jsonFile's content into 'users' which we defined above
+	json.Unmarshal(byteValue, &gcfPlatformAuth)
+
+	out, err := exec.Command("gcloud", "auth", "activate-service-account", gcfPlatformAuth.Client_email, "--key-file=/tmp/auth.json", "--project="+string(gcfPlatformAuth.Project_id)).Output()
+
+	if err != nil {
+		log.G(ctx).Errorf("Executing gcloud Cli register command failed: %v.\n", err)
+		return nil, err
+	} else {
+		log.G(ctx).Infof("Executing gcloud Cli register command success: %v.\n", string(out))
+	}
+
+	funcs_out, err := exec.Command("gcloud", "functions", "list", "--regions="+string(region)).Output()
+
+	if err != nil {
+		log.G(ctx).Errorf("Executing gcloud functions list command failed: %v.\n", err)
+		return nil, err
+	} else {
+		log.G(ctx).Infof("Executing gcloud functions list command success: %v.\n", string(funcs_out))
+		s := strings.Split(string(funcs_out), "\n")
+		for i, v := range s {
+			if i == 0 {
+				continue
+			}
+			s1 := strings.Fields(v)
+			log.G(ctx).Infof("Returned function: %v.\n", s1)
+			if len(s1) > 0 {
+				if s1[0] == name {
+					action := GCFFaaSFunc{
+						Name:  s1[0],
+						Image: s1[1],
+					}
+					log.G(ctx).Infof("Returned action: %v.\n", action)
+					return &action, nil
+				}
+			}
+		}
+		log.G(ctx).Infof("No Returned action\n")
+		return nil, nil
+	}
 }
 
-func GetServerlessFunctionsGCF(ctx context.Context, apiHost string, auth string) (error) {
+func GetServerlessFunctionsGCF(ctx context.Context, apiHost string, auth string, auth_bucket_name string, auth_object_name string, minioClient *minio.Client, region string) ([]GCFFaaSFunc, error) {
 
-		return nil
+	object, err := minioClient.GetObject(context.Background(), auth_bucket_name, auth_object_name, minio.GetObjectOptions{})
+	if err != nil {
+		log.G(ctx).Errorf(" minio auth_object_name GetObject failed: %v.\n", err)
+		return nil, err
+	}
+	localFile, err := os.Create("/tmp/auth.json")
+	if err != nil {
+		log.G(ctx).Errorf(" cannot create auth.json file failed: %v.\n", err)
+		return nil, err
+	}
+	if _, err = io.Copy(localFile, object); err != nil {
+		log.G(ctx).Errorf("auth.json file save failed: %v.\n", err)
+		return nil, err
+	}
+	jsonFile, err := os.Open("/tmp/auth.json")
+	byteValue, _ := ioutil.ReadAll(jsonFile)
+
+	if err != nil {
+		log.G(ctx).Errorf("Reading auth json command failed: %v.\n", err)
+		return nil, err
+	} else {
+		log.G(ctx).Infof("Reading authr command success: %v.\n", string(byteValue))
+	}
+
+	// we initialize our Users array
+	var gcfPlatformAuth GCFPlatformAuth
+
+	// we unmarshal our byteArray which contains our
+	// jsonFile's content into 'users' which we defined above
+	json.Unmarshal(byteValue, &gcfPlatformAuth)
+
+	out, err := exec.Command("gcloud", "auth", "activate-service-account", gcfPlatformAuth.Client_email, "--key-file=/tmp/auth.json", "--project="+string(gcfPlatformAuth.Project_id)).Output()
+
+	if err != nil {
+		log.G(ctx).Errorf("Executing gcloud Cli register command failed: %v.\n", err)
+		return nil, err
+	} else {
+		log.G(ctx).Infof("Executing gcloud Cli register command success: %v.\n", string(out))
+	}
+
+	if err != nil {
+		log.G(ctx).Errorf("Executing gcloud Cli register command failed: %v.\n", err)
+		return nil, err
+	} else {
+		log.G(ctx).Infof("Executing gcloud Cli register command success: %v.\n", string(out))
+	}
+
+	funcs_out, err := exec.Command("gcloud", "functions", "list", "--regions="+string(region)).Output()
+
+	if err != nil {
+		log.G(ctx).Errorf("Executing gcloud functions list command failed: %v.\n", err)
+		return nil, err
+	} else {
+		log.G(ctx).Infof("Executing gcloud functions list command success: %v.\n", string(funcs_out))
+		s := strings.Split(string(funcs_out), "\n")
+		var actions []GCFFaaSFunc
+		for i, v := range s {
+			if i == 0 {
+				continue
+			}
+			s1 := strings.Fields(v)
+			log.G(ctx).Infof("Returned function: %v Length: %v.\n", s1, strconv.Itoa(len(s1)))
+			if len(s1) > 0 {
+				actions = append(actions, GCFFaaSFunc{
+					Name:  s1[0],
+					Image: s1[1],
+				})
+			}
+		}
+		
+		if len(actions)>0  {
+			log.G(ctx).Infof("Returned actions: %v.\n", actions)
+			return actions, nil
+		} else{
+			log.G(ctx).Infof("No Returned actions.\n")
+			return nil, nil
+		}
+	}
 }
 
 func FunctionToPod(action *GCFFaaSFunc, nodeName string) (*v1.Pod, error) {
@@ -274,7 +417,7 @@ func FunctionToPod(action *GCFFaaSFunc, nodeName string) (*v1.Pod, error) {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              action.Name,
-			Namespace:         "default",
+			Namespace:         nodeName,
 			CreationTimestamp: metav1.NewTime(time.Unix(275, 0)),
 		},
 		Spec: v1.PodSpec{

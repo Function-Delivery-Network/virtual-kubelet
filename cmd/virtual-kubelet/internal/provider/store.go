@@ -73,6 +73,7 @@ type InitConfig struct {
 	ServerlessPlatformAuth               string
 	ServerlessPlatformConfigBucket       string
 	ServerlessPlatformConfigBucketObject string
+	ServerlessPlatformRegion             string
 	MinioEndpoint                        string
 	MinioAccessKeyID                     string
 	MinioSecretAccessKey                 string

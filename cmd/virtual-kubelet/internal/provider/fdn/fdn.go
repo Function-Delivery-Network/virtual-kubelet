@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Function-Delivery-Network/virtual-kubelet/cmd/virtual-kubelet/internal/provider/fdn/gcf"
 	"github.com/Function-Delivery-Network/virtual-kubelet/cmd/virtual-kubelet/internal/provider/fdn/openfaas"
 	"github.com/Function-Delivery-Network/virtual-kubelet/cmd/virtual-kubelet/internal/provider/fdn/openwhisk"
-	"github.com/Function-Delivery-Network/virtual-kubelet/cmd/virtual-kubelet/internal/provider/fdn/gcf"
 	"github.com/Function-Delivery-Network/virtual-kubelet/errdefs"
 	"github.com/Function-Delivery-Network/virtual-kubelet/log"
 	"github.com/Function-Delivery-Network/virtual-kubelet/node/api"
@@ -55,6 +55,7 @@ type FDNProvider struct { // nolint:golint
 	serverlessPlatformAuth               string
 	serverlessPlatformConfigBucket       string
 	serverlessPlatformConfigBucketObject string
+	serverlessPlatformRegion             string
 	minioEndpoint                        string
 	minioAccessKeyID                     string
 	minioSecretAccessKey                 string
@@ -77,7 +78,7 @@ type FDNConfig struct { // nolint:golint
 
 // NewFDNProviderConfig creates a new MockV0Provider. Mock legacy provider does not implement the new asynchronous podnotifier interface
 func NewFDNProviderConfig(config FDNConfig, nodeName, operatingSystem string, internalIP string, daemonEndpointPort int32,
-	serverlessPlatformName string, serverlessPlatformApiHost string, serverlessPlatformAuth string, serverlessPlatformConfigBucket string, serverlessPlatformConfigBucketObject string, minioEndpoint string,
+	serverlessPlatformName string, serverlessPlatformApiHost string, serverlessPlatformAuth string, serverlessPlatformConfigBucket string, serverlessPlatformConfigBucketObject string, serverlessPlatformRegion string, minioEndpoint string,
 	minioAccessKeyID string, minioSecretAccessKey string) (*FDNProvider, error) {
 	// set defaults
 	if config.CPU == "" {
@@ -99,6 +100,7 @@ func NewFDNProviderConfig(config FDNConfig, nodeName, operatingSystem string, in
 		serverlessPlatformAuth:               serverlessPlatformAuth,
 		serverlessPlatformConfigBucket:       serverlessPlatformConfigBucket,
 		serverlessPlatformConfigBucketObject: serverlessPlatformConfigBucketObject,
+		serverlessPlatformRegion:             serverlessPlatformRegion,
 		minioEndpoint:                        minioEndpoint,
 		minioAccessKeyID:                     minioAccessKeyID,
 		minioSecretAccessKey:                 minioSecretAccessKey,
@@ -112,7 +114,7 @@ func NewFDNProviderConfig(config FDNConfig, nodeName, operatingSystem string, in
 
 // NewMockProvider creates a new MockProvider, which implements the PodNotifier interface
 func NewFDNProvider(providerConfig, nodeName, operatingSystem string, internalIP string, daemonEndpointPort int32,
-	serverlessPlatformName string, serverlessPlatformApiHost string, serverlessPlatformAuth string,  serverlessPlatformConfigBucket string, serverlessPlatformConfigBucketObject string, minioEndpoint string,
+	serverlessPlatformName string, serverlessPlatformApiHost string, serverlessPlatformAuth string, serverlessPlatformConfigBucket string, serverlessPlatformConfigBucketObject string, serverlessPlatformRegion string, minioEndpoint string,
 	minioAccessKeyID string, minioSecretAccessKey string) (*FDNProvider, error) {
 	config, err := loadConfig(providerConfig, nodeName)
 	if err != nil {
@@ -120,7 +122,7 @@ func NewFDNProvider(providerConfig, nodeName, operatingSystem string, internalIP
 	}
 
 	return NewFDNProviderConfig(config, nodeName, operatingSystem, internalIP, daemonEndpointPort,
-		serverlessPlatformName, serverlessPlatformApiHost, serverlessPlatformAuth, serverlessPlatformConfigBucket, serverlessPlatformConfigBucketObject, minioEndpoint,
+		serverlessPlatformName, serverlessPlatformApiHost, serverlessPlatformAuth, serverlessPlatformConfigBucket, serverlessPlatformConfigBucketObject, serverlessPlatformRegion, minioEndpoint,
 		minioAccessKeyID, minioSecretAccessKey)
 }
 
@@ -254,7 +256,7 @@ func (p *FDNProvider) CreatePod(ctx context.Context, pod *corev1.Pod) (err error
 
 	if p.serverlessPlatformName == "gcf" {
 		log.G(ctx).Infof("serverless platform : %s", p.serverlessPlatformName)
-		err := gcf.CreateServerlessFunctionGCF(ctx, p.serverlessPlatformApiHost, p.serverlessPlatformAuth, p.serverlessPlatformConfigBucket, p.serverlessPlatformConfigBucketObject, pod, minioClient)
+		err := gcf.CreateServerlessFunctionGCF(ctx, p.serverlessPlatformApiHost, p.serverlessPlatformAuth, p.serverlessPlatformConfigBucket, p.serverlessPlatformConfigBucketObject, p.serverlessPlatformRegion, pod, minioClient)
 		if err != nil {
 			log.G(ctx).Infof("Failed to create pod: %v.\n", err)
 			return err
@@ -322,7 +324,7 @@ func (p *FDNProvider) DeletePod(ctx context.Context, pod *corev1.Pod) (err error
 
 	if p.serverlessPlatformName == "gcf" {
 		log.G(ctx).Infof("serverless platform : %s", p.serverlessPlatformName)
-		err := gcf.DeleteServerlessFunctionGCF(ctx, p.serverlessPlatformApiHost, p.serverlessPlatformAuth, p.serverlessPlatformConfigBucket, p.serverlessPlatformConfigBucketObject, pod, minioClient)
+		err := gcf.DeleteServerlessFunctionGCF(ctx, p.serverlessPlatformApiHost, p.serverlessPlatformAuth, p.serverlessPlatformConfigBucket, p.serverlessPlatformConfigBucketObject, p.serverlessPlatformRegion, pod, minioClient)
 		if err != nil {
 			log.G(ctx).Infof("Failed to delete pod: %v.\n", err)
 			return err
@@ -377,6 +379,17 @@ func (p *FDNProvider) GetPod(ctx context.Context, namespace, name string) (pod *
 	// 	return pod, nil
 	// }
 
+	// Initialize minio client object.
+	log.G(ctx).Infof("Initialize minio client object.\n")
+	minioClient, err := minio.New(p.minioEndpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(p.minioAccessKeyID, p.minioSecretAccessKey, ""),
+		Secure: false,
+	})
+	if err != nil {
+		log.G(ctx).Errorf("Initialize minio client failed: %v.\n", err)
+	}
+	log.G(ctx).Infof("Initialized minio client object successfully.\n")
+
 	// Get serverless function
 	if p.serverlessPlatformName == "openwhisk" {
 		log.G(ctx).Infof("serverless platform : %s", p.serverlessPlatformName)
@@ -400,13 +413,38 @@ func (p *FDNProvider) GetPod(ctx context.Context, namespace, name string) (pod *
 			log.G(ctx).Infof("Failed to get pod: %v.\n", err)
 			return nil, err
 		}
-		// Change a serverless function into a kubernetes pod
-		pod, err = openfaas.FunctionToPod(function, p.nodeName)
-		if err != nil {
-			return nil, fmt.Errorf("couldn't convert a serverless function into a pod: %s", err)
+		if function != nil {
+			// Change a serverless function into a kubernetes pod
+			pod, err = openfaas.FunctionToPod(function, p.nodeName)
+			if err != nil {
+				return nil, fmt.Errorf("couldn't convert a serverless function into a pod: %s", err)
+			}
+			log.G(ctx).Infof("send function as pod :  %s", pod.Name)
+			return pod, nil
+		}else{
+			log.G(ctx).Infof(" function is nil")
 		}
-		log.G(ctx).Infof("send function as pod :  %s", pod.Name)
-		return pod, nil
+	}
+
+	if p.serverlessPlatformName == "gcf" {
+		log.G(ctx).Infof("serverless platform : %s", p.serverlessPlatformName)
+		function, err := gcf.GetServerlessFunctionGCF(ctx, p.serverlessPlatformApiHost, p.serverlessPlatformAuth, p.serverlessPlatformConfigBucket, p.serverlessPlatformConfigBucketObject, p.serverlessPlatformRegion, minioClient, name)
+		if err != nil {
+			log.G(ctx).Infof("Failed to get pod: %v.\n", err)
+			return nil, err
+		}
+		// Change a serverless function into a kubernetes pod
+		if function != nil {
+
+			pod, err = gcf.FunctionToPod(function, p.nodeName)
+			if err != nil {
+				return nil, fmt.Errorf("couldn't convert a serverless function into a pod: %s", err)
+			}
+			log.G(ctx).Infof("send function as pod :  %s", pod.Name)
+			return pod, nil
+		}else{
+			log.G(ctx).Infof(" function is nil")
+		}
 	}
 
 	return nil, nil
@@ -452,6 +490,17 @@ func (p *FDNProvider) GetPods(ctx context.Context) ([]*corev1.Pod, error) {
 	ctx, span := trace.StartSpan(ctx, "GetPods")
 	defer span.End()
 
+	// Initialize minio client object.
+	log.G(ctx).Infof("Initialize minio client object.\n")
+	minioClient, err := minio.New(p.minioEndpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(p.minioAccessKeyID, p.minioSecretAccessKey, ""),
+		Secure: false,
+	})
+	if err != nil {
+		log.G(ctx).Errorf("Initialize minio client failed: %v.\n", err)
+	}
+	log.G(ctx).Infof("Initialized minio client object successfully.\n")
+
 	log.G(ctx).Info("receive GetPods")
 
 	var pods = []*corev1.Pod{}
@@ -481,17 +530,46 @@ func (p *FDNProvider) GetPods(ctx context.Context) ([]*corev1.Pod, error) {
 		if err != nil {
 			return nil, fmt.Errorf("couldn't get fn list from OF: %s", err)
 		}
-		for _, function := range functionsList {
-			// Change a function into a kubernetes pod
-			pod, err := openfaas.FunctionToPod(&function, p.nodeName)
-			if err != nil {
-				return nil, fmt.Errorf("couldn't convert a OF function into a pod: %s", err)
-			}
+		if functionsList != nil {
+			for _, function := range functionsList {
+				// Change a function into a kubernetes pod
+				pod, err := openfaas.FunctionToPod(&function, p.nodeName)
+				if err != nil {
+					return nil, fmt.Errorf("couldn't convert a OF function into a pod: %s", err)
+				}
 
-			pods = append(pods, pod)
+				pods = append(pods, pod)
+			}
+			return pods, nil
+		}else{
+			log.G(ctx).Infof(" functionsList is nil")
 		}
-		return pods, nil
 	}
+
+	if p.serverlessPlatformName == "gcf" {
+
+		log.G(ctx).Infof("serverless platform : %s", p.serverlessPlatformName)
+
+		functionsList, err := gcf.GetServerlessFunctionsGCF(ctx, p.serverlessPlatformApiHost, p.serverlessPlatformAuth, p.serverlessPlatformConfigBucket, p.serverlessPlatformConfigBucketObject, minioClient, p.serverlessPlatformRegion)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't get fn list from GCF: %s", err)
+		}
+		if functionsList != nil {
+			for _, function := range functionsList {
+				// Change a function into a kubernetes pod
+				pod, err := gcf.FunctionToPod(&function, p.nodeName)
+				if err != nil {
+					return nil, fmt.Errorf("couldn't convert a GCF function into a pod: %s", err)
+				}
+
+				pods = append(pods, pod)
+			}
+			return pods, nil
+		}else{
+			log.G(ctx).Infof(" functionsList is nil")
+		}
+	}
+
 	return nil, nil
 }
 

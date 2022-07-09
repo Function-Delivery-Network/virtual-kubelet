@@ -256,7 +256,7 @@ func FunctionToPod(action *whisk.Action, nodeName string) (*v1.Pod, error) {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              action.Name,
-			Namespace:         "default",
+			Namespace:         nodeName,
 			CreationTimestamp: metav1.NewTime(time.Unix(275, 0)),
 		},
 		Spec: v1.PodSpec{

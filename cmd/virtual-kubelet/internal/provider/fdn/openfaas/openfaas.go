@@ -298,22 +298,25 @@ func GetServerlessFunctionOF(ctx context.Context, apiHost string, auth string, n
 	} else {
 		log.G(ctx).Infof("Executing FaaS Cli register command success: %v.\n", string(out))
 		s := strings.Split(string(out), "\n")
-		var actions []OpenFaaSFunc
 		for i, v := range s {
 			if i == 0 {
 				continue
 			}
 			s1 := strings.Fields(v)
 			log.G(ctx).Infof("Returned function: %v.\n", s1)
-			if s1[0] == name {
-				action := OpenFaaSFunc{
-					Name:  s1[0],
-					Image: s1[1],
+			if len(s1) > 0 {
+				if s1[0] == name {
+					action := OpenFaaSFunc{
+						Name:  s1[0],
+						Image: s1[1],
+					}
+					log.G(ctx).Infof("Returned action: %v.\n", action)
+					return &action, nil
 				}
-				return &action, nil
 			}
 		}
-		log.G(ctx).Infof("Returned actions: %v.\n", actions)
+		
+		log.G(ctx).Infof("No Returned action\n")
 		return nil, nil
 	}
 }
@@ -337,13 +340,20 @@ func GetServerlessFunctionsOF(ctx context.Context, apiHost string, auth string) 
 			}
 			s1 := strings.Fields(v)
 			log.G(ctx).Infof("Returned function: %v.\n", s1)
-			actions = append(actions, OpenFaaSFunc{
-				Name:  s1[0],
-				Image: s1[1],
-			})
+			if len(s1) > 0 {
+				actions = append(actions, OpenFaaSFunc{
+					Name:  s1[0],
+					Image: s1[1],
+				})
+			}
 		}
-		log.G(ctx).Infof("Returned actions: %v.\n", actions)
-		return actions, nil
+		if len(actions)>0  {
+			log.G(ctx).Infof("Returned actions: %v.\n", actions)
+			return actions, nil
+		} else{
+			log.G(ctx).Infof("No Returned actions.\n")
+			return nil, nil
+		}
 	}
 }
 
@@ -387,7 +397,7 @@ func FunctionToPod(action *OpenFaaSFunc, nodeName string) (*v1.Pod, error) {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              action.Name,
-			Namespace:         "default",
+			Namespace:         nodeName,
 			CreationTimestamp: metav1.NewTime(time.Unix(275, 0)),
 		},
 		Spec: v1.PodSpec{

@@ -28,6 +28,7 @@ func registerMock(s *provider.Store) {
 			cfg.ServerlessPlatformAuth,
 			cfg.ServerlessPlatformConfigBucket,
 			cfg.ServerlessPlatformConfigBucketObject,
+			cfg.ServerlessPlatformRegion,
 			cfg.MinioEndpoint,
 			cfg.MinioAccessKeyID, 
 			cfg.MinioSecretAccessKey,

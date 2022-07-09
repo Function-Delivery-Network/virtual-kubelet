@@ -93,7 +93,9 @@ func installFlags(flags *pflag.FlagSet, c *Opts) {
 
 	flags.StringVar(&c.ServerlessPlatformConfigBucket, "serverless-platform-config-bucket", c.ServerlessPlatformConfigBucket, "sets the config-bucket of the serverless platform")
 	flags.StringVar(&c.ServerlessPlatformConfigBucketObject, "serverless-platform-config-object", c.ServerlessPlatformConfigBucketObject, "sets the config-object path of the serverless platform")
-	
+	flags.StringVar(&c.ServerlessPlatformRegion, "serverless-platform-region", c.ServerlessPlatformRegion, "sets the region of the serverless platform")
+
+
 	flags.StringVar(&c.MinioEndpoint, "minio-endpoint", c.MinioEndpoint, "sets the endpoint of the minio")
 	flags.StringVar(&c.MinioAccessKeyID, "minio-accesskey-id", c.MinioAccessKeyID, "sets the accesskey-id of the minio")
 	flags.StringVar(&c.MinioSecretAccessKey, "minio-secret-accesskey", c.MinioSecretAccessKey, "sets the secret-access-key of the minio")

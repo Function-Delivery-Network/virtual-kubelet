@@ -80,21 +80,22 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 			return nil, nil, errors.Wrap(err, "could not create resource manager")
 		}
 		initConfig := provider.InitConfig{
-			ConfigPath:                c.ProviderConfigPath,
-			NodeName:                  c.NodeName,
-			OperatingSystem:           c.OperatingSystem,
-			ResourceManager:           rm,
-			DaemonPort:                c.ListenPort,
-			InternalIP:                os.Getenv("VKUBELET_POD_IP"),
-			KubeClusterDomain:         c.KubeClusterDomain,
-			ServerlessPlatformName:    c.ServerlessPlatformName,
-			ServerlessPlatformApiHost: c.ServerlessPlatformApiHost,
-			ServerlessPlatformAuth:    c.ServerlessPlatformAuth,
-			ServerlessPlatformConfigBucket: c.ServerlessPlatformConfigBucket,
+			ConfigPath:                           c.ProviderConfigPath,
+			NodeName:                             c.NodeName,
+			OperatingSystem:                      c.OperatingSystem,
+			ResourceManager:                      rm,
+			DaemonPort:                           c.ListenPort,
+			InternalIP:                           os.Getenv("VKUBELET_POD_IP"),
+			KubeClusterDomain:                    c.KubeClusterDomain,
+			ServerlessPlatformName:               c.ServerlessPlatformName,
+			ServerlessPlatformApiHost:            c.ServerlessPlatformApiHost,
+			ServerlessPlatformAuth:               c.ServerlessPlatformAuth,
+			ServerlessPlatformConfigBucket:       c.ServerlessPlatformConfigBucket,
 			ServerlessPlatformConfigBucketObject: c.ServerlessPlatformConfigBucketObject,
-			MinioEndpoint:             c.MinioEndpoint,
-			MinioAccessKeyID:          c.MinioAccessKeyID,
-			MinioSecretAccessKey:      c.MinioSecretAccessKey,
+			ServerlessPlatformRegion:             c.ServerlessPlatformRegion,
+			MinioEndpoint:                        c.MinioEndpoint,
+			MinioAccessKeyID:                     c.MinioAccessKeyID,
+			MinioSecretAccessKey:                 c.MinioSecretAccessKey,
 		}
 		pInit := s.Get(c.Provider)
 		if pInit == nil {

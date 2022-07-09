@@ -85,11 +85,12 @@ type Opts struct {
 	TraceConfig     TracingExporterOptions
 
 	// FaaS platform related data
-	ServerlessPlatformName    string
-	ServerlessPlatformApiHost string
-	ServerlessPlatformAuth    string
-	ServerlessPlatformConfigBucket string
+	ServerlessPlatformName               string
+	ServerlessPlatformApiHost            string
+	ServerlessPlatformAuth               string
+	ServerlessPlatformConfigBucket       string
 	ServerlessPlatformConfigBucketObject string
+	ServerlessPlatformRegion             string
 
 	MinioEndpoint        string
 	MinioAccessKeyID     string
