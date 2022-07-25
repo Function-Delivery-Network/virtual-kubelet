@@ -236,6 +236,9 @@ func (p *FDNProvider) CreatePod(ctx context.Context, pod *corev1.Pod) (err error
 	log.G(ctx).Infof("Initialized minio client object successfully.\n")
 
 	if p.serverlessPlatformName == "openwhisk" {
+		//url := "http://admin:"+p.serverlessPlatformAuth+"@"+p.serverlessPlatformApiHost+"/api/v1/namespaces/guest/actions/"+pod.Name
+
+		//p.pods[key].Status.PodIP = url
 		log.G(ctx).Infof("serverless platform : %s", p.serverlessPlatformName)
 		err := openwhisk.CreateServerlessFunctionOW(ctx, p.serverlessPlatformApiHost, p.serverlessPlatformAuth, pod, minioClient)
 		if err != nil {
@@ -245,6 +248,9 @@ func (p *FDNProvider) CreatePod(ctx context.Context, pod *corev1.Pod) (err error
 
 	}
 	if p.serverlessPlatformName == "openfaas" {
+		//url := "http://"+p.serverlessPlatformApiHost+"/function/"+pod.Name
+		//p.pods[key].Status.PodIP = url
+
 		log.G(ctx).Infof("serverless platform : %s", p.serverlessPlatformName)
 		err := openfaas.CreateServerlessFunctionOF(ctx, p.serverlessPlatformApiHost, p.serverlessPlatformAuth, pod, minioClient)
 		if err != nil {
@@ -255,12 +261,18 @@ func (p *FDNProvider) CreatePod(ctx context.Context, pod *corev1.Pod) (err error
 	}
 
 	if p.serverlessPlatformName == "gcf" {
+
 		log.G(ctx).Infof("serverless platform : %s", p.serverlessPlatformName)
 		err := gcf.CreateServerlessFunctionGCF(ctx, p.serverlessPlatformApiHost, p.serverlessPlatformAuth, p.serverlessPlatformConfigBucket, p.serverlessPlatformConfigBucketObject, p.serverlessPlatformRegion, pod, minioClient)
 		if err != nil {
 			log.G(ctx).Infof("Failed to create pod: %v.\n", err)
 			return err
 		}
+
+	}
+	if p.serverlessPlatformName == "aws" {
+
+		log.G(ctx).Infof("serverless platform : %s", p.serverlessPlatformName)
 
 	}
 	p.notifier(pod)

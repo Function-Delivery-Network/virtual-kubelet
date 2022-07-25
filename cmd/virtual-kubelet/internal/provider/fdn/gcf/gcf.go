@@ -80,6 +80,11 @@ func CreateServerlessFunctionGCF(ctx context.Context, apiHost string, auth strin
 	// jsonFile's content into 'users' which we defined above
 	json.Unmarshal(byteValue, &gcfPlatformAuth)
 
+	//url := "http://"+region+"-"+gcfPlatformAuth.Project_id+".cloudfunctions.net/"+pod.Name
+	//pod.Status.PodIP = url
+
+
+
 	out, err := exec.Command("gcloud", "auth", "activate-service-account", gcfPlatformAuth.Client_email, "--key-file=/tmp/auth.json", "--project="+string(gcfPlatformAuth.Project_id)).Output()
 
 	if err != nil {
@@ -94,6 +99,8 @@ func CreateServerlessFunctionGCF(ctx context.Context, apiHost string, auth strin
 		memory := defaultFunctionMemory
 		timeout := defaultFunctionTimeout
 		concurrency := defaultFunctionConcurrency
+/* 		url := "http://"+region+"-"+gcfPlatformAuth.Project_id+".cloudfunctions.net/"+ctr.Name
+		pod.Status.PodIP = url */
 		for _, s := range ctr.Env {
 			if s.Name == "BUCKET_NAME" {
 				bucket_name = s.Value

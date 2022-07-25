@@ -199,8 +199,8 @@ func CreateServerlessFunctionOF(ctx context.Context, apiHost string, auth string
 				Lang:     "python3",
 				Handler:  "./" + ctr.Name,
 				Image:    ctr.Image,
-				Limits:   FuncLimitsCpu{Cpu: strconv.Itoa(cpu) + "Mi"},
-				Requests: FuncLimitsCpu{Cpu: strconv.Itoa(cpu) + "Mi"},
+				Limits:   FuncLimitsCpu{Cpu: strconv.Itoa(cpu) + "m"},
+				Requests: FuncLimitsCpu{Cpu: strconv.Itoa(cpu) + "m"},
 			}
 			m := make(map[string]FuncCpu)
 			m[ctr.Name] = f1

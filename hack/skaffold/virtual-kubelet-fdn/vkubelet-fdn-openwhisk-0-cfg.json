@@ -28,5 +28,30 @@
     "cpu": "10",
     "memory": "32Gi",
     "pods": "128"
+  },
+  "vkubelet-fdn-public-cloud-1-gcf-1": {
+    "cpu": "10",
+    "memory": "32Gi",
+    "pods": "128"
+  },
+  "vkubelet-fdn-public-cloud-1-gcf-2": {
+    "cpu": "10",
+    "memory": "32Gi",
+    "pods": "128"
+  },
+  "vkubelet-fdn-public-cloud-1-aws-0": {
+    "cpu": "10",
+    "memory": "32Gi",
+    "pods": "128"
+  },
+  "vkubelet-fdn-public-cloud-1-aws-1": {
+    "cpu": "10",
+    "memory": "32Gi",
+    "pods": "128"
+  },
+  "vkubelet-fdn-public-cloud-1-aws-2": {
+    "cpu": "10",
+    "memory": "32Gi",
+    "pods": "128"
   }
 }
