@@ -1,56 +1,6 @@
 {
-  "vkubelet-fdn-lrz-cloud-3-openwhisk-0": {
+  "vkubelet-fdn-config": {
     "cpu": "20",
-    "memory": "32Gi",
-    "pods": "128"
-  },
-  "vkubelet-fdn-lrz-cloud-2-openwhisk-0": {
-    "cpu": "20",
-    "memory": "32Gi",
-    "pods": "128"
-  },
-  "vkubelet-fdn-lrz-cloud-1-openfaas-0": {
-    "cpu": "20",
-    "memory": "32Gi",
-    "pods": "128"
-  },
-  "vkubelet-fdn-edge-2-openfaas-0": {
-    "cpu": "10",
-    "memory": "32Gi",
-    "pods": "128"
-  },
-  "vkubelet-fdn-edge-1-openfaas-0": {
-    "cpu": "10",
-    "memory": "32Gi",
-    "pods": "128"
-  },
-  "vkubelet-fdn-public-cloud-1-gcf-0": {
-    "cpu": "10",
-    "memory": "32Gi",
-    "pods": "128"
-  },
-  "vkubelet-fdn-public-cloud-1-gcf-1": {
-    "cpu": "10",
-    "memory": "32Gi",
-    "pods": "128"
-  },
-  "vkubelet-fdn-public-cloud-1-gcf-2": {
-    "cpu": "10",
-    "memory": "32Gi",
-    "pods": "128"
-  },
-  "vkubelet-fdn-public-cloud-1-aws-0": {
-    "cpu": "10",
-    "memory": "32Gi",
-    "pods": "128"
-  },
-  "vkubelet-fdn-public-cloud-1-aws-1": {
-    "cpu": "10",
-    "memory": "32Gi",
-    "pods": "128"
-  },
-  "vkubelet-fdn-public-cloud-1-aws-2": {
-    "cpu": "10",
     "memory": "32Gi",
     "pods": "128"
   }

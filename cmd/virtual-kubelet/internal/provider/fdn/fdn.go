@@ -116,7 +116,7 @@ func NewFDNProviderConfig(config FDNConfig, nodeName, operatingSystem string, in
 func NewFDNProvider(providerConfig, nodeName, operatingSystem string, internalIP string, daemonEndpointPort int32,
 	serverlessPlatformName string, serverlessPlatformApiHost string, serverlessPlatformAuth string, serverlessPlatformConfigBucket string, serverlessPlatformConfigBucketObject string, serverlessPlatformRegion string, minioEndpoint string,
 	minioAccessKeyID string, minioSecretAccessKey string) (*FDNProvider, error) {
-	config, err := loadConfig(providerConfig, nodeName)
+	config, err := loadConfig(providerConfig, "vkubelet-fdn-config")
 	if err != nil {
 		return nil, err
 	}
