@@ -46,7 +46,7 @@ spec:
     - name: INFLUXDB_TABLE_INFRA
       value:    
   - name: vkubelet-fdn-openwhisk-0
-    image: ansjin/virtual-kubelet:fdn5
+    image: functiondeliverynetwork/virtual-kubelet:latest
     # "IfNotPresent" is used to prevent Minikube from trying to pull from the registry (and failing) in the first place.
     imagePullPolicy: Always
     args:
