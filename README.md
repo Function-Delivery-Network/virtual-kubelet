@@ -197,7 +197,7 @@ sudo sh build.sh
 Check virtual-kubelet/hack/skaffold/virtual-kubelet-fdn/pod.yml
 ```yaml
   - name: vkubelet-fdn-openwhisk-0
-    image: Function-Delivery-Network/virtual-kubelet:fdn5
+    image: functiondeliverynetwork/virtual-kubelet:latest
     # "IfNotPresent" is used to prevent Minikube from trying to pull from the registry (and failing) in the first place.
     imagePullPolicy: Always
     args:

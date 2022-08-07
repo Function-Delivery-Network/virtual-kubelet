@@ -39,12 +39,27 @@ type openFaaSPlatformClient struct {
 type FuncLimitsMem struct {
 	Memory string
 }
+const MinScaleLabel = "com.openfaas.scale.min"
+// MaxScaleLabel label indicating max scale for a function
+const MaxScaleLabel = "com.openfaas.scale.max"
+
+// ScalingFactorLabel label indicates the scaling factor for a function
+const ScalingFactorLabel = "com.openfaas.scale.factor"
+
+
+type FuncLabels struct {
+	MinScaleLabel int `com.openfaas.scale.min`
+	MaxScaleLabel int `com.openfaas.scale.max`
+	ScalingFactorLabel int `com.openfaas.scale.factor`
+}
+
 type FuncMem struct {
 	Lang     string
 	Handler  string
 	Image    string
 	Limits   FuncLimitsMem
 	Requests FuncLimitsMem
+	Labels   FuncLabels
 }
 
 type FuncLimitsCpu struct {
@@ -56,6 +71,7 @@ type FuncCpu struct {
 	Image    string
 	Limits   FuncLimitsCpu
 	Requests FuncLimitsCpu
+	Labels   FuncLabels
 }
 
 type OpenFaaSFunc struct {
@@ -103,6 +119,7 @@ func CreateServerlessFunctionOF(ctx context.Context, apiHost string, auth string
 
 		memory := defaultFunctionMemory
 		cpu := defaultFunctionCPU
+		concurrency := defaultFunctionConcurrency
 		for _, s := range ctr.Env {
 			if s.Name == "BUCKET_NAME" {
 				bucket_name = s.Value
@@ -118,6 +135,11 @@ func CreateServerlessFunctionOF(ctx context.Context, apiHost string, auth string
 				number, _ := strconv.ParseUint(s.Value, 10, 32)
 				cpu = int(number)
 				cpu_specified = true
+
+			}
+			if s.Name == "FUNCTION_CONCURRENCY" {
+				number, _ := strconv.ParseUint(s.Value, 10, 32)
+				concurrency = int(number)
 			}
 			/* 			if(s.Name == "FUNCTION_TIMEOUT"){
 				number,_ := strconv.ParseUint(s.Value, 10, 32)
@@ -169,6 +191,7 @@ func CreateServerlessFunctionOF(ctx context.Context, apiHost string, auth string
 				Image:    ctr.Image,
 				Limits:   FuncLimitsMem{Memory: strconv.Itoa(memory) + "Mi"},
 				Requests: FuncLimitsMem{Memory: strconv.Itoa(memory) + "Mi"},
+				Labels: FuncLabels{MinScaleLabel: 1, MaxScaleLabel: concurrency, ScalingFactorLabel: 50},
 			}
 			m := make(map[string]FuncMem)
 			m[ctr.Name] = f1
@@ -201,6 +224,7 @@ func CreateServerlessFunctionOF(ctx context.Context, apiHost string, auth string
 				Image:    ctr.Image,
 				Limits:   FuncLimitsCpu{Cpu: strconv.Itoa(cpu) + "m"},
 				Requests: FuncLimitsCpu{Cpu: strconv.Itoa(cpu) + "m"},
+				Labels: FuncLabels{MinScaleLabel: 1, MaxScaleLabel: concurrency, ScalingFactorLabel: 50},
 			}
 			m := make(map[string]FuncCpu)
 			m[ctr.Name] = f1
