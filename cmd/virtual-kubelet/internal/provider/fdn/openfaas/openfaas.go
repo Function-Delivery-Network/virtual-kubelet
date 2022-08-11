@@ -116,6 +116,7 @@ func CreateServerlessFunctionOF(ctx context.Context, apiHost string, auth string
 		bucket_name := ""
 		object_name := ""
 		cpu_specified := false
+		mem_specified := false
 
 		memory := defaultFunctionMemory
 		cpu := defaultFunctionCPU
@@ -130,6 +131,7 @@ func CreateServerlessFunctionOF(ctx context.Context, apiHost string, auth string
 			if s.Name == "FUNCTION_MEMORY" {
 				number, _ := strconv.ParseUint(s.Value, 10, 32)
 				memory = int(number)
+				mem_specified = true
 			}
 			if s.Name == "FUNCTION_CPU" {
 				number, _ := strconv.ParseUint(s.Value, 10, 32)
@@ -184,7 +186,7 @@ func CreateServerlessFunctionOF(ctx context.Context, apiHost string, auth string
 			Gateway: apiHost,
 		}
 
-		if cpu_specified == false {
+		if mem_specified {
 			f1 := FuncMem{
 				Lang:     "python3",
 				Handler:  "./" + ctr.Name,
@@ -217,7 +219,7 @@ func CreateServerlessFunctionOF(ctx context.Context, apiHost string, auth string
 			fmt.Println(" --- YAML ---")
 			fmt.Println(string(yamlData)) //
 
-		} else {
+		} else  if cpu_specified {
 			f1 := FuncCpu{
 				Lang:     "python3",
 				Handler:  "./" + ctr.Name,
