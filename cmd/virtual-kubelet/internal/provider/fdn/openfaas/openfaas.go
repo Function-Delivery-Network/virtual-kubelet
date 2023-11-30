@@ -2,15 +2,14 @@ package openfaas
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
-	"strconv"
-	"time"
-
-	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Function-Delivery-Network/virtual-kubelet/log"
 	"github.com/minio/minio-go/v7"
@@ -39,17 +38,18 @@ type openFaaSPlatformClient struct {
 type FuncLimitsMem struct {
 	Memory string
 }
+
 const MinScaleLabel = "com.openfaas.scale.min"
+
 // MaxScaleLabel label indicating max scale for a function
 const MaxScaleLabel = "com.openfaas.scale.max"
 
 // ScalingFactorLabel label indicates the scaling factor for a function
 const ScalingFactorLabel = "com.openfaas.scale.factor"
 
-
 type FuncLabels struct {
-	MinScaleLabel int `com.openfaas.scale.min`
-	MaxScaleLabel int `com.openfaas.scale.max`
+	MinScaleLabel      int `com.openfaas.scale.min`
+	MaxScaleLabel      int `com.openfaas.scale.max`
 	ScalingFactorLabel int `com.openfaas.scale.factor`
 }
 
@@ -96,7 +96,6 @@ type OpenFaaSYamlCpu struct {
 // createFunctions takes the containers in a kubernetes pod and creates
 // a list of serverless functions from them.
 func CreateServerlessFunctionOF(ctx context.Context, apiHost string, auth string, pod *v1.Pod, minioClient *minio.Client) error {
-
 	prg := "faas-cli"
 	arg1 := "--gateway"
 	arg2 := "login"
@@ -193,7 +192,7 @@ func CreateServerlessFunctionOF(ctx context.Context, apiHost string, auth string
 				Image:    ctr.Image,
 				Limits:   FuncLimitsMem{Memory: strconv.Itoa(memory) + "Mi"},
 				Requests: FuncLimitsMem{Memory: strconv.Itoa(memory) + "Mi"},
-				Labels: FuncLabels{MinScaleLabel: 1, MaxScaleLabel: concurrency, ScalingFactorLabel: 50},
+				Labels:   FuncLabels{MinScaleLabel: 1, MaxScaleLabel: concurrency, ScalingFactorLabel: 50},
 			}
 			m := make(map[string]FuncMem)
 			m[ctr.Name] = f1
@@ -213,20 +212,19 @@ func CreateServerlessFunctionOF(ctx context.Context, apiHost string, auth string
 				log.G(ctx).Errorf("file write failed: %v.\n", err2)
 				return err
 			} else {
-
 				log.G(ctx).Infof("File written")
 			}
 			fmt.Println(" --- YAML ---")
 			fmt.Println(string(yamlData)) //
 
-		} else  if cpu_specified {
+		} else if cpu_specified {
 			f1 := FuncCpu{
 				Lang:     "python3",
 				Handler:  "./" + ctr.Name,
 				Image:    ctr.Image,
 				Limits:   FuncLimitsCpu{Cpu: strconv.Itoa(cpu) + "m"},
 				Requests: FuncLimitsCpu{Cpu: strconv.Itoa(cpu) + "m"},
-				Labels: FuncLabels{MinScaleLabel: 1, MaxScaleLabel: concurrency, ScalingFactorLabel: 50},
+				Labels:   FuncLabels{MinScaleLabel: 1, MaxScaleLabel: concurrency, ScalingFactorLabel: 50},
 			}
 			m := make(map[string]FuncCpu)
 			m[ctr.Name] = f1
@@ -246,7 +244,6 @@ func CreateServerlessFunctionOF(ctx context.Context, apiHost string, auth string
 				log.G(ctx).Errorf("file write failed: %v.\n", err2)
 				return err
 			} else {
-
 				log.G(ctx).Infof("File written")
 			}
 			fmt.Println(" --- YAML ---")
@@ -279,7 +276,6 @@ func CreateServerlessFunctionOF(ctx context.Context, apiHost string, auth string
 }
 
 func DeleteServerlessFunctionOF(ctx context.Context, apiHost string, auth string, pod *v1.Pod) error {
-
 	prg := "faas-cli"
 	arg1 := "--gateway"
 	arg2 := "login"
@@ -297,7 +293,7 @@ func DeleteServerlessFunctionOF(ctx context.Context, apiHost string, auth string
 	}
 
 	for _, ctr := range pod.Spec.Containers {
-		//image := ctr.Image
+		// image := ctr.Image
 		arg_f2 := "remove"
 		resp, err := exec.Command(prg, arg1, apiHost, arg_f2, ctr.Name).Output()
 
@@ -313,7 +309,6 @@ func DeleteServerlessFunctionOF(ctx context.Context, apiHost string, auth string
 }
 
 func GetServerlessFunctionOF(ctx context.Context, apiHost string, auth string, name string) (*OpenFaaSFunc, error) {
-
 	prg := "faas-cli"
 	arg1 := "--gateway"
 	out, err := exec.Command(prg, arg1, apiHost, "list", "--verbose").Output()
@@ -341,14 +336,13 @@ func GetServerlessFunctionOF(ctx context.Context, apiHost string, auth string, n
 				}
 			}
 		}
-		
+
 		log.G(ctx).Infof("No Returned action\n")
 		return nil, nil
 	}
 }
 
 func GetServerlessFunctionsOF(ctx context.Context, apiHost string, auth string) ([]OpenFaaSFunc, error) {
-
 	prg := "faas-cli"
 	arg1 := "--gateway"
 	out, err := exec.Command(prg, arg1, apiHost, "list", "--verbose").Output()
@@ -373,10 +367,10 @@ func GetServerlessFunctionsOF(ctx context.Context, apiHost string, auth string) 
 				})
 			}
 		}
-		if len(actions)>0  {
+		if len(actions) > 0 {
 			log.G(ctx).Infof("Returned actions: %v.\n", actions)
 			return actions, nil
-		} else{
+		} else {
 			log.G(ctx).Infof("No Returned actions.\n")
 			return nil, nil
 		}
@@ -529,3 +523,4 @@ func convertFunctionStatusToPodCondition(jobStatus string) v1.PodCondition {
 
 // 	return containerState, readyFlag
 // }
+

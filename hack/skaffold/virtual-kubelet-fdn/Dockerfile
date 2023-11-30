@@ -22,4 +22,6 @@ COPY ./vkubelet-fdn-openwhisk-0-crt.pem /vkubelet-fdn-openwhisk-0-crt.pem
 # Copy the private key for the HTTPS server.
 COPY ./vkubelet-fdn-openwhisk-0-key.pem /vkubelet-fdn-openwhisk-0-key.pem
 
+COPY ./python3-req/ /go/template/python3-req
+
 CMD ["/virtual-kubelet"]

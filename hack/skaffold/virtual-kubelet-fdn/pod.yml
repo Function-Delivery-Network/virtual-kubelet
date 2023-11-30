@@ -7,7 +7,7 @@ spec:
   - name: jaeger-tracing
     image: jaegertracing/all-in-one:1.22
   - name: fdn-monitor
-    image: Function-Delivery-Network/fdn-monitor
+    image: isaacnez/fdn-monitor
     imagePullPolicy: Always
     env:
     - name: CLUSTER_API_GW_ACCESS_TOKEN
